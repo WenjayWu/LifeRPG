@@ -74,6 +74,20 @@ https://dav.jianguoyun.com/dav/life-rpg/index.html
 .\sync\pull-from-nutstore.ps1
 ```
 
+### Lyra 集成（聊天录入状态）
+```bash
+# 在飞书直接发送状态，Lyra 会自动解析并写入 records
+# 格式：精力3 情绪4 身体2 专注3 社交欲1 模式无聊 今天休息
+
+# 也可以手动运行 CLI
+python3 sync/life-rpg-cli.py '精力3 情绪4 身体2 专注3 社交欲1 模式无聊 今天休息'
+```
+
+### 构建 history.json（Linux/WSL）
+```bash
+python3 sync/build-history.py
+```
+
 ### 日常开发流程
 ```powershell
 # 1. 修改代码（src/ 目录）

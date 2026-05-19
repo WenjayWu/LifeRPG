@@ -1,24 +1,17 @@
-﻿{
-    "generatedAt":  "2026-05-19",
-    "source":  "records/*.md",
-    "records":  [
-                    {
-                        "date":  "2026-05-19",
-                        "energy":  2,
-                        "mood":  5,
-                        "body":  3,
-                        "focus":  3,
-                        "social":  1,
-                        "mode":  "无聊",
-                        "xp":  {
-                                   "体能":  0,
-                                   "智识":  0,
-                                   "创造":  20,
-                                   "工程":  20,
-                                   "社交":  0,
-                                   "秩序":  5
-                               },
-                        "completedTasks":  0
-                    }
-                ]
+{
+    "generatedAt": "2026-05-19",
+    "source": "records/*.md",
+    "records": [
+        {
+            "date": "2026-05-19",
+            "energy": 3,
+            "mood": 4,
+            "body": 2,
+            "focus": 3,
+            "social": 1,
+            "mode": "普通",
+            "xp": {},
+            "completedTasks": 0
+        }
+    ]
 }
