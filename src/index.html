@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>杰的人生 RPG 状态面板</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Life RPG v0.1</div>
+        <h1>杰的人生 RPG 状态面板</h1>
+        <p class="subtitle">先判断今天的状态，再给出合适任务。低能量就恢复，高能量就打 Boss，无聊时直接抽一张现在能做的卡。</p>
+      </div>
+      <div class="date-chip">
+        <span>今日存档</span>
+        <span id="todayText">--</span>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>状态录入</h2>
+            <span>1 = 很低，5 = 很满</span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <form class="status-form" id="statusForm">
+            <div class="metric">
+              <div class="metric-row"><label for="energy">精力</label><span class="metric-value" id="energyValue">3</span></div>
+              <input id="energy" name="energy" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="mood">情绪</label><span class="metric-value" id="moodValue">3</span></div>
+              <input id="mood" name="mood" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="body">身体</label><span class="metric-value" id="bodyValue">3</span></div>
+              <input id="body" name="body" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="focus">专注</label><span class="metric-value" id="focusValue">3</span></div>
+              <input id="focus" name="focus" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="social">社交欲</label><span class="metric-value" id="socialValue">3</span></div>
+              <input id="social" name="social" type="range" min="1" max="5" value="3">
+            </div>
+          </form>
+
+          <div class="metric" style="margin-top: 18px;">
+            <div class="metric-row"><label>当前更像</label><span class="small-muted">可手动覆盖</span></div>
+            <div class="modes" id="modeButtons"></div>
+          </div>
+
+          <div class="actions">
+            <button class="primary-btn" id="recommendBtn" type="button">生成今日任务</button>
+            <button class="ghost-btn" id="resetBtn" type="button">重置状态</button>
+            <button class="ghost-btn" id="copyCodexBtn" type="button">复制给 Codex</button>
+          </div>
+          <div class="copy-status" id="copyStatus">调好状态后复制给 Codex，我会写入 records。</div>
+        </div>
+      </aside>
+
+      <section class="main-grid">
+        <div class="summary-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>五维状态雷达</h2>
+                <span>越靠外越适合推进高强度任务</span>
+              </div>
+            </div>
+            <div class="panel-body radar-wrap">
+              <canvas id="radar" width="420" height="420" aria-label="五维状态雷达图"></canvas>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>今日模式</h2>
+                <span>状态解释与行动原则</span>
+              </div>
+            </div>
+            <div class="panel-body mode-summary">
+              <div class="mode-badge" id="modeBadge">普通</div>
+              <div class="directive" id="directiveText">今天适合做 1 个成长任务、1 个生活任务、1 个轻娱乐任务，保持节奏即可。</div>
+              <div class="small-muted" id="xpHint">今日推荐 XP：45</div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>六维属性</h2>
+              <span>完成任务后把 XP 记到对应属性</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="stats" id="stats"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>今日任务卡</h2>
+              <span>恢复、成长、娱乐各选一个，完成比完美重要</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="cards" id="taskCards"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>反无聊抽卡</h2>
+              <span>不知道干什么时，按当前状态抽一个动作</span>
+            </div>
+          </div>
+          <div class="panel-body boredom">
+            <div class="draw-result" id="drawResult">还没抽卡。点击右侧按钮，拿一个现在能执行的小动作。</div>
+            <button class="primary-btn" id="drawBtn" type="button">抽一张</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>历史趋势</h2>
+              <span>从 Markdown 日志汇总出的 7/30 天动态变化</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="history-summary" id="historySummary"></div>
+            <canvas id="trend" width="920" height="280" aria-label="最近状态趋势图"></canvas>
+            <div class="history-tools">
+              <span class="history-source" id="historySource">正在读取 data/history.json...</span>
+              <label class="file-btn">
+                导入 history.json
+                <input id="historyFile" type="file" accept="application/json,.json">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="boss-grid">
+          <div class="boss">
+            <h3>本周 Boss</h3>
+            <p id="bossText">拖延 Boss：选择一个堆积任务，拆成 3 个 20 分钟小回合。</p>
+          </div>
+          <div class="achievement">
+            <h3>近期成就</h3>
+            <p id="achievementText">连续三天完成状态记录；完成一次 30 分钟运动；整理一次桌面。</p>
+          </div>
+        </section>
+
+        <section class="review-box">
+          <h3>一句复盘</h3>
+          <p id="reviewPrompt">今晚只回答一句：今天什么事让状态变好了？</p>
+          <textarea id="reviewText" placeholder="写一句就行，比如：跑步后脑子清醒了，晚上少刷 30 分钟短视频。"></textarea>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
