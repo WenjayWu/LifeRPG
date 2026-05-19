@@ -7,6 +7,8 @@ LifeRPG 是一个个人状态、任务和复盘面板。现在的主链路是：
 - Agent/API：后续通过 Supabase Edge Functions 读写同一套数据。
 - 备份：`records/*.md` 和 `data/history.json` 只作为导出/离线备份，不再作为日常实时同步核心。
 
+开发进度和后续路线见 [`docs/DEVELOPMENT_LOG.md`](docs/DEVELOPMENT_LOG.md)。
+
 ## 当前状态
 
 - 前端已经接入 Supabase 登录、状态保存、任务实例、属性和历史读取。
