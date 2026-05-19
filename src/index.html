@@ -110,12 +110,32 @@
         <section class="panel">
           <div class="panel-header">
             <div class="panel-title">
-              <h2>今日任务卡</h2>
-              <span>恢复、成长、娱乐各选一个，完成比完美重要</span>
+              <h2>今日任务推荐</h2>
+              <span>点击"加入清单"选择任务，或"刷新"换一批</span>
+            </div>
+            <button class="ghost-btn" id="refreshTasksBtn" type="button">🔄 刷新任务</button>
+          </div>
+          <div class="panel-body">
+            <div class="cards" id="recommendedTasks"></div>
+            <div class="refresh-hint" id="refreshHint">还有 <span id="remainingCount">--</span> 个任务可选</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>今日任务清单</h2>
+              <span>已选择的任务，完成后勾选</span>
+            </div>
+            <div class="list-stats">
+              <span id="listStats">0/3 任务</span>
+              <span id="listXp">0 XP</span>
             </div>
           </div>
           <div class="panel-body">
-            <div class="cards" id="taskCards"></div>
+            <div class="task-list" id="taskList">
+              <div class="empty-list">还没有选择任务，从上方推荐区添加</div>
+            </div>
           </div>
         </section>
 

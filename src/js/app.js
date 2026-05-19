@@ -218,17 +218,20 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       document.getElementById("recommendBtn").addEventListener("click", () => {
         state.mode = inferMode();
         storage.set("lifeRpgMode", state.mode);
+        initTaskPool();
         updateAll();
       });
       document.getElementById("resetBtn").addEventListener("click", resetInputs);
       document.getElementById("drawBtn").addEventListener("click", drawBoredom);
       document.getElementById("copyCodexBtn").addEventListener("click", copyForCodex);
+      document.getElementById("refreshTasksBtn").addEventListener("click", refreshRecommended);
       document.getElementById("historyFile").addEventListener("change", importHistory);
       document.getElementById("reviewText").value = storage.get("lifeRpgReview") || "";
       document.getElementById("reviewText").addEventListener("input", event => {
         storage.set("lifeRpgReview", event.target.value);
       });
       loadHistory();
+      initTaskPool();
     }
 
     function buildModeButtons() {
@@ -412,12 +415,12 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       document.getElementById("modeBadge").textContent = state.mode;
       document.getElementById("directiveText").textContent = directives[state.mode];
       updateRadar();
-      renderTasks();
       renderHistory();
       checkAchievements();
       renderAchievements();
       renderBoss();
       renderSkillTree();
+      // Task pool is initialized separately
     }
 
     function updateRadar() {
@@ -478,24 +481,102 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       ctx.stroke();
     }
 
-    function renderTasks() {
+    // 任务池管理
+    const taskPool = {
+      available: [],
+      selected: [],
+      completed: [],
+      recommended: []
+    };
+
+    function initTaskPool() {
       const matched = tasks.filter(task => task.states.includes(state.mode));
       const fallback = tasks.filter(task => ["普通", "低能量"].some(s => task.states.includes(s)));
-      const pool = matched.length >= 3 ? matched : [...matched, ...fallback];
-      const selected = pickTaskSet(pool);
-      const totalXp = selected.reduce((sum, task) => sum + task.xp, 0);
-      document.getElementById("xpHint").textContent = `今日推荐 XP：${totalXp}`;
-      document.getElementById("taskCards").innerHTML = selected.map((task, index) => {
-        const isCompleted = state.completedTasks.includes(task.title);
-        return `
-        <article class="task-card ${isCompleted ? 'completed' : ''}" data-task="${task.title}">
-          <div class="task-header">
-            <div class="task-kind">${task.type}</div>
-            <label class="task-check">
-              <input type="checkbox" ${isCompleted ? 'checked' : ''} data-task="${task.title}">
-              <span>${isCompleted ? '✓ 已完成' : '标记完成'}</span>
-            </label>
-          </div>
+      taskPool.available = matched.length >= 3 ? [...matched] : [...matched, ...fallback];
+      taskPool.selected = [];
+      taskPool.completed = [];
+      taskPool.recommended = [];
+      refreshRecommended();
+    }
+
+    function refreshRecommended() {
+      const pool = taskPool.available.filter(task =>
+        !taskPool.selected.some(s => s.title === task.title) &&
+        !taskPool.recommended.some(r => r.title === task.title)
+      );
+      if (pool.length === 0) {
+        const resetPool = tasks.filter(task =>
+          !taskPool.selected.some(s => s.title === task.title)
+        );
+        if (resetPool.length === 0) {
+          taskPool.recommended = [];
+          return;
+        }
+        taskPool.recommended = shuffleArray(resetPool).slice(0, 3);
+      } else {
+        taskPool.recommended = shuffleArray(pool).slice(0, 3);
+      }
+      renderRecommendedTasks();
+      updateRefreshHint();
+    }
+
+    function shuffleArray(array) {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    function addToList(task) {
+      if (taskPool.selected.length >= 5) {
+        showToast("任务清单已满（最多5个），先完成一些吧！");
+        return;
+      }
+      if (taskPool.selected.some(s => s.title === task.title)) {
+        showToast("这个任务已经在清单里了");
+        return;
+      }
+      taskPool.selected.push({...task, completed: false});
+      taskPool.recommended = taskPool.recommended.filter(r => r.title !== task.title);
+      renderRecommendedTasks();
+      renderTaskList();
+      updateRefreshHint();
+      showToast(`✓ 已添加「${task.title}」到清单`);
+    }
+
+    function removeFromList(taskTitle) {
+      taskPool.selected = taskPool.selected.filter(s => s.title !== taskTitle);
+      renderTaskList();
+      updateRefreshHint();
+    }
+
+    function toggleTaskComplete(taskTitle) {
+      const task = taskPool.selected.find(s => s.title === taskTitle);
+      if (!task) return;
+      task.completed = !task.completed;
+      if (task.completed) {
+        addXp(task.attr, task.xp);
+        showToast(`✓ 完成「${taskTitle}」 +${task.xp} XP`);
+      } else {
+        addXp(task.attr, -task.xp);
+        showToast(`↩ 取消完成「${taskTitle}」 -${task.xp} XP`);
+      }
+      renderTaskList();
+      buildStats();
+    }
+
+    function renderRecommendedTasks() {
+      const container = document.getElementById("recommendedTasks");
+      if (!container) return;
+      if (taskPool.recommended.length === 0) {
+        container.innerHTML = `<div class="empty-recommended"><p>没有更多推荐了，点击刷新或调整状态</p></div>`;
+        return;
+      }
+      container.innerHTML = taskPool.recommended.map(task => `
+        <article class="task-card recommended">
+          <div class="task-header"><div class="task-kind">${task.type}</div></div>
           <h3>${task.title}</h3>
           <p>${task.note}</p>
           <div class="task-meta">
@@ -503,26 +584,83 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
             <span class="pill">${task.time}</span>
             <span class="pill">+${task.xp} XP</span>
           </div>
+          <div class="task-actions">
+            <button class="primary-btn add-btn" data-task="${task.title}" type="button">➕ 加入清单</button>
+            <button class="ghost-btn skip-btn" data-task="${task.title}" type="button">⏭️ 跳过</button>
+          </div>
         </article>
-      `}).join("");
-      
-      // 绑定 checkbox 事件
-      document.querySelectorAll('.task-check input').forEach(checkbox => {
-        checkbox.addEventListener('change', handleTaskComplete);
+      `).join("");
+      container.querySelectorAll('.add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const task = tasks.find(t => t.title === btn.dataset.task);
+          if (task) addToList(task);
+        });
+      });
+      container.querySelectorAll('.skip-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          taskPool.recommended = taskPool.recommended.filter(r => r.title !== btn.dataset.task);
+          renderRecommendedTasks();
+          updateRefreshHint();
+        });
       });
     }
 
-    function pickTaskSet(pool) {
-      const wanted = ["恢复", "成长", state.mode === "想社交" ? "社交" : "娱乐"];
-      const chosen = [];
-      wanted.forEach(type => {
-        const found = pool.find(task => task.type === type && !chosen.includes(task));
-        if (found) chosen.push(found);
+    function renderTaskList() {
+      const container = document.getElementById("taskList");
+      if (!container) return;
+      if (taskPool.selected.length === 0) {
+        container.innerHTML = `<div class="empty-list">还没有选择任务，从上方推荐区添加</div>`;
+        updateListStats();
+        return;
+      }
+      container.innerHTML = taskPool.selected.map(task => `
+        <div class="task-list-item ${task.completed ? 'completed' : ''}">
+          <label class="task-check">
+            <input type="checkbox" ${task.completed ? 'checked' : ''} data-task="${task.title}">
+            <span>${task.completed ? '✓' : ''}</span>
+          </label>
+          <div class="task-info">
+            <div class="task-title">${task.title}</div>
+            <div class="task-meta-small">
+              <span class="pill">${task.type}</span>
+              <span class="pill">${task.attr}</span>
+              <span class="pill">+${task.xp} XP</span>
+            </div>
+          </div>
+          <button class="remove-btn" data-task="${task.title}" type="button">✕</button>
+        </div>
+      `).join("");
+      container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => toggleTaskComplete(checkbox.dataset.task));
       });
-      pool.forEach(task => {
-        if (chosen.length < 3 && !chosen.includes(task)) chosen.push(task);
+      container.querySelectorAll('.remove-btn').forEach(btn => {
+        btn.addEventListener('click', () => removeFromList(btn.dataset.task));
       });
-      return chosen.slice(0, 3);
+      updateListStats();
+    }
+
+    function updateRefreshHint() {
+      const remaining = tasks.filter(task =>
+        !taskPool.selected.some(s => s.title === task.title)
+      ).length;
+      const hint = document.getElementById("refreshHint");
+      const count = document.getElementById("remainingCount");
+      if (hint && count) {
+        count.textContent = remaining;
+        hint.style.display = remaining > 0 ? 'block' : 'none';
+      }
+    }
+
+    function updateListStats() {
+      const stats = document.getElementById("listStats");
+      const xp = document.getElementById("listXp");
+      if (stats && xp) {
+        const completed = taskPool.selected.filter(s => s.completed).length;
+        const total = taskPool.selected.length;
+        const totalXp = taskPool.selected.filter(s => s.completed).reduce((sum, t) => sum + t.xp, 0);
+        stats.textContent = `${completed}/${total} 任务`;
+        xp.textContent = `${totalXp} XP`;
+      }
     }
 
     function drawBoredom() {
