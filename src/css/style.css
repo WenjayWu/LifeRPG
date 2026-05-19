@@ -620,6 +620,79 @@
       outline: none;
     }
 
+    .weekly-report {
+      display: grid;
+      gap: 16px;
+    }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    .report-card {
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .report-card h4 {
+      font-size: 14px;
+      margin: 0 0 12px 0;
+      color: var(--muted);
+    }
+
+    .completion-rate {
+      font-size: 48px;
+      font-weight: 900;
+      color: var(--green);
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    .week-summary {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+
+    .heatmap {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .heatmap-cell {
+      aspect-ratio: 1;
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .heatmap-cell:hover {
+      transform: scale(1.1);
+      z-index: 1;
+    }
+
+    .heatmap-weekday {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+
+    @media (max-width: 760px) {
+      .report-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     @media (max-width: 1050px) {
       .layout,
       .summary-grid {

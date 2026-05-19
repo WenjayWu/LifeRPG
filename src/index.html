@@ -152,6 +152,49 @@
           </div>
         </section>
 
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>周报表</h2>
+              <span>本周/本月状态汇总与成长分析</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="weekly-report" id="weeklyReport">
+              <div class="report-grid">
+                <div class="report-card">
+                  <h4>模式分布</h4>
+                  <canvas id="modePie" width="200" height="200"></canvas>
+                </div>
+                <div class="report-card">
+                  <h4>属性成长</h4>
+                  <canvas id="attrGrowth" width="300" height="200"></canvas>
+                </div>
+                <div class="report-card">
+                  <h4>任务完成率</h4>
+                  <div class="completion-rate" id="completionRate">--</div>
+                </div>
+                <div class="report-card">
+                  <h4>本周总结</h4>
+                  <div class="week-summary" id="weekSummary">加载中...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>状态热力图</h2>
+              <span>过去 30 天每日状态强度</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="heatmap" id="heatmap"></div>
+          </div>
+        </section>
+
         <section class="boss-grid">
           <div class="boss">
             <h3>本周 Boss</h3>

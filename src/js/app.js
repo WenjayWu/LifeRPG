@@ -648,6 +648,169 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         { value: topAttr, label: "最高频 XP 属性" }
       ].map(item => `<div class="history-kpi"><strong>${item.value}</strong><span>${item.label}</span></div>`).join("");
       drawTrend(records.slice(-7));
+      renderWeeklyReport(records);
+      renderHeatmap(records);
+    }
+
+    function renderWeeklyReport(records) {
+      const weekRecords = records.slice(-7);
+      
+      // 模式分布饼图
+      const modeCounts = {};
+      weekRecords.forEach(r => {
+        modeCounts[r.mode] = (modeCounts[r.mode] || 0) + 1;
+      });
+      drawModePie(modeCounts);
+      
+      // 属性成长柱状图
+      const attrGrowth = {};
+      weekRecords.forEach(r => {
+        Object.entries(r.xp || {}).forEach(([attr, xp]) => {
+          attrGrowth[attr] = (attrGrowth[attr] || 0) + xp;
+        });
+      });
+      drawAttrGrowth(attrGrowth);
+      
+      // 任务完成率
+      const totalTasks = weekRecords.reduce((sum, r) => sum + (r.completedTasks || 0), 0);
+      const avgCompletion = weekRecords.length ? (totalTasks / weekRecords.length / 3 * 100).toFixed(0) : 0;
+      document.getElementById("completionRate").textContent = `${avgCompletion}%`;
+      
+      // 本周总结
+      const modes = Object.entries(modeCounts).sort((a, b) => b[1] - a[1]);
+      const dominantMode = modes[0]?.[0] || "普通";
+      const summary = `本周主导状态：<strong>${dominantMode}</strong>。<br>
+        共记录 ${weekRecords.length} 天，完成任务 ${totalTasks} 个。<br>
+        最高频属性：${topAttr || "暂无"}。<br>
+        ${avgCompletion >= 80 ? "🎉 完成率优秀！" : avgCompletion >= 50 ? "📈 完成率良好，继续加油。" : "💪 下周争取完成更多任务！"}`;
+      document.getElementById("weekSummary").innerHTML = summary;
+    }
+
+    function drawModePie(modeCounts) {
+      const canvas = document.getElementById("modePie");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = Math.min(w, h) / 2 - 10;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      const colors = ["#41d38b", "#48c9e8", "#f3b94e", "#a98bff", "#f06d62", "#9bd66f", "#ff8a65", "#80deea"];
+      const total = Object.values(modeCounts).reduce((a, b) => a + b, 0);
+      let startAngle = -Math.PI / 2;
+      
+      Object.entries(modeCounts).forEach(([mode, count], i) => {
+        const angle = (count / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, radius, startAngle, startAngle + angle);
+        ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.strokeStyle = "#11161c";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        startAngle += angle;
+      });
+      
+      // 中心空白
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+      ctx.fillStyle = "#181c22";
+      ctx.fill();
+      
+      // 中心文字
+      ctx.fillStyle = "#dfeaf0";
+      ctx.font = "bold 14px Microsoft YaHei";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("模式", cx, cy - 8);
+      ctx.font = "12px Microsoft YaHei";
+      ctx.fillStyle = "#9aa8b6";
+      ctx.fillText(`${total}天`, cx, cy + 10);
+    }
+
+    function drawAttrGrowth(attrGrowth) {
+      const canvas = document.getElementById("attrGrowth");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = { left: 40, right: 10, top: 20, bottom: 30 };
+      const plotW = w - pad.left - pad.right;
+      const plotH = h - pad.top - pad.bottom;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      const attrs = Object.entries(attrGrowth).sort((a, b) => b[1] - a[1]);
+      const max = Math.max(...attrs.map(a => a[1]), 1);
+      const barW = plotW / attrs.length * 0.6;
+      const gap = plotW / attrs.length;
+      
+      attrs.forEach(([attr, xp], i) => {
+        const x = pad.left + i * gap + (gap - barW) / 2;
+        const barH = (xp / max) * plotH;
+        const y = pad.top + plotH - barH;
+        
+        // 柱状图
+        ctx.fillStyle = `hsl(${120 + i * 30}, 70%, 60%)`;
+        ctx.fillRect(x, y, barW, barH);
+        
+        // 数值
+        ctx.fillStyle = "#dfeaf0";
+        ctx.font = "11px Microsoft YaHei";
+        ctx.textAlign = "center";
+        ctx.fillText(xp, x + barW / 2, y - 5);
+        
+        // 属性名
+        ctx.fillStyle = "#9aa8b6";
+        ctx.fillText(attr, x + barW / 2, h - 10);
+      });
+    }
+
+    function renderHeatmap(records) {
+      const container = document.getElementById("heatmap");
+      if (!container) return;
+      
+      const days = ["日", "一", "二", "三", "四", "五", "六"];
+      const today = new Date();
+      let html = "";
+      
+      // 表头
+      days.forEach(day => {
+        html += `<div class="heatmap-weekday">${day}</div>`;
+      });
+      
+      // 过去 30 天
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().slice(0, 10);
+        const record = records.find(r => r.date === dateStr);
+        
+        let intensity = 0;
+        let title = dateStr;
+        if (record) {
+          intensity = Math.round((record.energy + record.mood + record.body + record.focus + record.social) / 25 * 4);
+          intensity = Math.min(intensity, 4);
+          title = `${dateStr} 精力${record.energy} 情绪${record.mood} 身体${record.body}`;
+        }
+        
+        const colors = [
+          "rgba(255,255,255,0.05)",
+          "rgba(65,211,139,0.2)",
+          "rgba(65,211,139,0.4)",
+          "rgba(65,211,139,0.6)",
+          "rgba(65,211,139,0.9)"
+        ];
+        
+        html += `<div class="heatmap-cell" style="background:${colors[intensity]}" title="${title}">${date.getDate()}</div>`;
+      }
+      
+      container.innerHTML = html;
     }
 
     function drawTrend(records) {
