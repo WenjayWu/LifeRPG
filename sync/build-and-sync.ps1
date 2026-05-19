@@ -1,7 +1,7 @@
 # 构建并推送到坚果云
 # 用法: .\sync\build-and-sync.ps1 [-RemoteRoot "/life-rpg/"]
 param(
-    [string]$RemoteRoot = "/life-rpg/",
+    [string]$RemoteRoot = "/LifeRPG_DEMO",
     [switch]$SkipBuild
 )
 

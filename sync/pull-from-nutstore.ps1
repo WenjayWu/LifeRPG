@@ -1,7 +1,7 @@
 # 从坚果云拉取数据
 # 用法: .\sync\pull-from-nutstore.ps1 [-RemoteRoot "/life-rpg/"]
 param(
-    [string]$RemoteRoot = "/life-rpg/"
+    [string]$RemoteRoot = "/LifeRPG_DEMO"
 )
 
 $ErrorActionPreference = "Stop"
