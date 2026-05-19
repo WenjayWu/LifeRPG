@@ -111,7 +111,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       mode: storage.get("lifeRpgMode") || "普通",
       history: fallbackHistory,
       completedTasks: storage.getJSON("lifeRpgCompletedTasks", []),
-      today: new Date().toISOString().slice(0, 10)
+      today: new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\//g, "-")
     };
 
     const remoteStore = window.LifeRpgRemoteStore ? new window.LifeRpgRemoteStore() : null;
