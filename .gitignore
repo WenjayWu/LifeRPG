@@ -1,7 +1,3 @@
-# 运行时数据（坚果云同步，不同步到 GitHub）
-/data/history.json
-/records/*.md
-
 # 构建输出
 /dist/
 

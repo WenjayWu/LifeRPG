@@ -52,7 +52,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     const bosses = [
       { id: "procrastination", name: "拖延 Boss", maxHp: 100, currentHp: 60, rounds: 3, completedRounds: 1, reward: { xp: 50, attr: "秩序" }, desc: "选择一个堆积任务，拆成 3 个 20 分钟小回合。" },
       { id: "distraction", name: "分心 Boss", maxHp: 80, currentHp: 80, rounds: 2, completedRounds: 0, reward: { xp: 40, attr: "专注" }, desc: "连续 45 分钟只做一件事，手机放另一个房间。" },
-      { id: "perfectionism", name: "完美主义 Boss", maxHp: 120, currentHp: 120, rounds: 4, completedRounds: 0, reward: { xp: 60, attr: "创造" }, desc: "故意做一个"够烂"的版本，30 分钟内不许修改。" }
+      { id: "perfectionism", name: "完美主义 Boss", maxHp: 120, currentHp: 120, rounds: 4, completedRounds: 0, reward: { xp: 60, attr: "创造" }, desc: "故意做一个'够烂'的版本，30 分钟内不许修改。" }
     ];
 
     const skills = [
@@ -85,23 +85,45 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       { date: "2026-05-19", energy: 3, mood: 3, body: 3, focus: 3, social: 3, mode: "普通", xp: { "智识": 5, "创造": 20, "秩序": 5 }, completedTasks: 3 }
     ];
 
+    // localStorage 封装（兼容隐私模式）
+    const storage = {
+      data: {},
+      get(key) {
+        try { return localStorage.getItem(key); } catch(e) { return this.data[key] || null; }
+      },
+      set(key, value) {
+        try { localStorage.setItem(key, value); } catch(e) { this.data[key] = value; }
+      },
+      remove(key) {
+        try { localStorage.removeItem(key); } catch(e) { delete this.data[key]; }
+      },
+      getJSON(key, fallback) {
+        const raw = this.get(key);
+        if (!raw) return fallback;
+        try { return JSON.parse(raw); } catch(e) { return fallback; }
+      },
+      setJSON(key, value) {
+        try { this.set(key, JSON.stringify(value)); } catch(e) { this.data[key] = JSON.stringify(value); }
+      }
+    };
+
     const state = {
-      mode: localStorage.getItem("lifeRpgMode") || "普通",
+      mode: storage.get("lifeRpgMode") || "普通",
       history: fallbackHistory,
-      completedTasks: JSON.parse(localStorage.getItem("lifeRpgCompletedTasks") || "[]"),
+      completedTasks: storage.getJSON("lifeRpgCompletedTasks", []),
       today: new Date().toISOString().slice(0, 10)
     };
 
     // 清理过期的完成任务（非今日）
     if (state.completedTasks.length > 0) {
-      const savedDate = localStorage.getItem("lifeRpgCompletedDate");
+      const savedDate = storage.get("lifeRpgCompletedDate");
       if (savedDate !== state.today) {
         state.completedTasks = [];
-        localStorage.setItem("lifeRpgCompletedTasks", "[]");
-        localStorage.setItem("lifeRpgCompletedDate", state.today);
+        storage.setJSON("lifeRpgCompletedTasks", []);
+        storage.set("lifeRpgCompletedDate", state.today);
       }
     } else {
-      localStorage.setItem("lifeRpgCompletedDate", state.today);
+      storage.set("lifeRpgCompletedDate", state.today);
     }
 
     function handleTaskComplete(event) {
@@ -125,8 +147,8 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         showToast(`↩ 取消「${taskTitle}」 -${task.xp} XP`);
       }
 
-      localStorage.setItem("lifeRpgCompletedTasks", JSON.stringify(state.completedTasks));
-      localStorage.setItem("lifeRpgCompletedDate", state.today);
+      storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
+      storage.set("lifeRpgCompletedDate", state.today);
       
       // 重新渲染任务卡片和属性面板
       renderTasks();
@@ -195,16 +217,16 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       updateAll();
       document.getElementById("recommendBtn").addEventListener("click", () => {
         state.mode = inferMode();
-        localStorage.setItem("lifeRpgMode", state.mode);
+        storage.set("lifeRpgMode", state.mode);
         updateAll();
       });
       document.getElementById("resetBtn").addEventListener("click", resetInputs);
       document.getElementById("drawBtn").addEventListener("click", drawBoredom);
       document.getElementById("copyCodexBtn").addEventListener("click", copyForCodex);
       document.getElementById("historyFile").addEventListener("change", importHistory);
-      document.getElementById("reviewText").value = localStorage.getItem("lifeRpgReview") || "";
+      document.getElementById("reviewText").value = storage.get("lifeRpgReview") || "";
       document.getElementById("reviewText").addEventListener("input", event => {
-        localStorage.setItem("lifeRpgReview", event.target.value);
+        storage.set("lifeRpgReview", event.target.value);
       });
       loadHistory();
     }
@@ -215,7 +237,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       wrap.querySelectorAll("button").forEach(button => {
         button.addEventListener("click", () => {
           state.mode = button.dataset.mode;
-          localStorage.setItem("lifeRpgMode", state.mode);
+          storage.set("lifeRpgMode", state.mode);
           updateAll();
         });
       });
@@ -258,24 +280,24 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     function restoreInputs() {
       metrics.forEach(metric => {
-        const saved = localStorage.getItem(`lifeRpg_${metric.key}`);
+        const saved = storage.get(`lifeRpg_${metric.key}`);
         if (saved) document.getElementById(metric.key).value = saved;
         syncMetric(metric.key);
       });
     }
 
     function saveInputs() {
-      metrics.forEach(metric => localStorage.setItem(`lifeRpg_${metric.key}`, document.getElementById(metric.key).value));
+      metrics.forEach(metric => storage.set(`lifeRpg_${metric.key}`, document.getElementById(metric.key).value));
     }
 
     function resetInputs() {
       metrics.forEach(metric => {
         document.getElementById(metric.key).value = 3;
         document.getElementById(`${metric.key}Value`).textContent = 3;
-        localStorage.removeItem(`lifeRpg_${metric.key}`);
+        storage.remove(`lifeRpg_${metric.key}`);
       });
       state.mode = "普通";
-      localStorage.setItem("lifeRpgMode", state.mode);
+      storage.set("lifeRpgMode", state.mode);
       updateAll();
     }
 
@@ -296,7 +318,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     function checkAchievements() {
-      const unlocked = JSON.parse(localStorage.getItem("lifeRpgAchievements") || "[]");
+      const unlocked = JSON.parse(storage.get("lifeRpgAchievements") || "[]");
       let newUnlock = false;
       
       achievements.forEach(ach => {
@@ -308,13 +330,13 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
       
       if (newUnlock) {
-        localStorage.setItem("lifeRpgAchievements", JSON.stringify(unlocked));
+        storage.setJSON("lifeRpgAchievements", unlocked);
         renderAchievements();
       }
     }
 
     function renderAchievements() {
-      const unlocked = JSON.parse(localStorage.getItem("lifeRpgAchievements") || "[]");
+      const unlocked = JSON.parse(storage.get("lifeRpgAchievements") || "[]");
       const container = document.getElementById("achievementText");
       if (!container) return;
       
