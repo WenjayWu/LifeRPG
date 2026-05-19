@@ -1,9 +1,14 @@
 # 构建输出
 /dist/
 
-# 环境变量
+# 环境变量与本地私密配置
 .env
 src/js/config.local.js
+
+# 个人运行数据与导出备份
+records/
+data/history.json
+data/profile.json
 
 # 坚果云同步缓存
 .sync-cache/

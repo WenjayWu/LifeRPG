@@ -12,6 +12,7 @@ LifeRPG 是一个个人状态、任务和复盘面板。现在的主链路是：
 - 前端已经接入 Supabase 登录、状态保存、任务实例、属性和历史读取。
 - 本地历史数据可以通过 `sync/import-to-supabase.py` 导入 Supabase。
 - Supabase 数据可以通过 `sync/export-from-supabase.py` 导出回 Markdown 和 `history.json`。
+- `records/*.md`、`data/history.json` 和 `data/profile.json` 是个人数据备份，不提交到 Git。
 - 坚果云 WebDAV 已降级为可选备份目标，不再保存硬编码账号或应用密码。
 
 ## 项目结构
@@ -34,10 +35,20 @@ LifeRPG/
 │  ├─ migrations/          数据表、RLS、Realtime 配置
 │  └─ functions/           Edge Functions
 ├─ sync/                   导入、导出、本地 CLI、可选备份脚本
-├─ records/                Markdown 备份
-├─ data/                   history/profile/tasks 离线备份
+├─ records/                Markdown 备份，本地保留，不提交
+├─ data/                   tasks 提交；history/profile 本地保留，不提交
 └─ start-liferpg.ps1       本地启动脚本
 ```
+
+## Git 隐私边界
+
+GitHub 只管理源码、静态页面和任务模板。个人运行数据由 Supabase 管理，导出的本地备份不再进入 Git：
+
+- 不提交：`records/`、`data/history.json`、`data/profile.json`。
+- 继续提交：`data/tasks.json`，它是任务模板/种子数据，不是每日记录。
+- 继续提交：`src/js/config.js`，它只包含前端可公开的 Supabase Project URL 和 anon/publishable key。
+
+如果仓库曾经公开过 `records/`、`history.json` 或 `profile.json`，改成 private 只能阻止后续普通访问，不能保证撤回别人已经拉取、缓存或 fork 的历史内容。极端敏感时需要单独做 Git 历史重写和 force push。
 
 ## 本地开发
 
