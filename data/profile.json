@@ -1,0 +1,21 @@
+{
+  "name": "杰",
+  "version": "0.1",
+  "attributes": [
+    { "name": "体能", "level": 2, "xp": 42, "next": 100 },
+    { "name": "智识", "level": 3, "xp": 68, "next": 100 },
+    { "name": "创造", "level": 2, "xp": 55, "next": 100 },
+    { "name": "工程", "level": 2, "xp": 35, "next": 100 },
+    { "name": "社交", "level": 1, "xp": 28, "next": 100 },
+    { "name": "秩序", "level": 2, "xp": 74, "next": 100 }
+  ],
+  "weeklyBoss": {
+    "title": "拖延 Boss",
+    "description": "选择一个堆积任务，拆成 3 个 20 分钟小回合。"
+  },
+  "achievements": [
+    "连续三天完成状态记录",
+    "完成一次 30 分钟运动",
+    "整理一次桌面"
+  ]
+}

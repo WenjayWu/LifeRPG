@@ -1,0 +1,1293 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>杰的人生 RPG 状态面板</title>
+  <style>
+    :root {
+      --bg: #101215;
+      --panel: #181c22;
+      --panel-2: #202630;
+      --line: #313946;
+      --text: #f0f4f7;
+      --muted: #9aa8b6;
+      --green: #41d38b;
+      --cyan: #48c9e8;
+      --amber: #f3b94e;
+      --red: #f06d62;
+      --violet: #a98bff;
+      --white-08: rgba(255, 255, 255, .08);
+      --shadow: 0 22px 70px rgba(0, 0, 0, .36);
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        linear-gradient(135deg, rgba(65, 211, 139, .14), transparent 32%),
+        linear-gradient(315deg, rgba(240, 109, 98, .10), transparent 30%),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+    }
+
+    .app {
+      width: min(1280px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 18px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(30px, 5vw, 56px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      margin-top: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      max-width: 760px;
+      margin-top: 12px;
+      line-height: 1.7;
+    }
+
+    .date-chip {
+      display: grid;
+      gap: 4px;
+      min-width: 190px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: rgba(24, 28, 34, .88);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .date-chip span:first-child {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .date-chip span:last-child {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      background: rgba(24, 28, 34, .92);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 18px 18px 12px;
+      border-bottom: 1px solid var(--white-08);
+    }
+
+    .panel-title {
+      display: grid;
+      gap: 4px;
+    }
+
+    .panel-title h2 {
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    .panel-title span,
+    .small-muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .panel-body {
+      padding: 18px;
+    }
+
+    .status-form {
+      display: grid;
+      gap: 16px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 8px;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .metric label {
+      color: var(--text);
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .metric-value {
+      width: 34px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--green);
+      font-weight: 900;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+    }
+
+    .modes {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .mode-btn,
+    .primary-btn,
+    .ghost-btn {
+      min-height: 42px;
+      border-radius: 8px;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+
+    .mode-btn:hover,
+    .primary-btn:hover,
+    .ghost-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--green);
+    }
+
+    .mode-btn.active {
+      border-color: var(--green);
+      background: rgba(65, 211, 139, .16);
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .copy-status {
+      margin-top: 10px;
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .primary-btn {
+      background: linear-gradient(135deg, var(--green), #1f9f83);
+      color: #07100d;
+      font-weight: 900;
+      border-color: transparent;
+    }
+
+    .main-grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 18px;
+    }
+
+    .radar-wrap {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+    }
+
+    canvas {
+      background: radial-gradient(circle, rgba(72, 201, 232, .10), transparent 58%);
+      border-radius: 8px;
+    }
+
+    #radar {
+      width: min(100%, 320px);
+      aspect-ratio: 1;
+    }
+
+    .mode-summary {
+      display: grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .mode-badge {
+      display: inline-grid;
+      place-items: center;
+      width: fit-content;
+      padding: 7px 11px;
+      border-radius: 7px;
+      color: #11130f;
+      background: var(--amber);
+      font-weight: 900;
+    }
+
+    .directive {
+      padding: 14px;
+      border-radius: 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      line-height: 1.65;
+      color: #dbe5ea;
+    }
+
+    .stats {
+      display: grid;
+      gap: 14px;
+    }
+
+    .stat {
+      display: grid;
+      gap: 8px;
+    }
+
+    .stat-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .bar {
+      height: 12px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #0e1115;
+      border: 1px solid var(--line);
+    }
+
+    .bar > span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .task-card {
+      display: grid;
+      gap: 12px;
+      min-height: 180px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel-2);
+    }
+
+    .task-kind {
+      color: var(--cyan);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .task-card h3 {
+      font-size: 18px;
+      line-height: 1.28;
+    }
+
+    .task-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .task-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .pill {
+      display: inline-grid;
+      place-items: center;
+      min-height: 26px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      color: #dfeaf0;
+      background: rgba(255, 255, 255, .07);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .boredom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .draw-result {
+      padding: 14px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(72, 201, 232, .12), rgba(243, 185, 78, .10));
+      border: 1px solid var(--line);
+      line-height: 1.55;
+    }
+
+    .boss-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .history-summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .history-kpi {
+      min-height: 78px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .history-kpi strong {
+      display: block;
+      font-size: 24px;
+      margin-bottom: 4px;
+    }
+
+    .history-kpi span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .history-tools {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .trend-chart {
+      width: 100%;
+      height: clamp(260px, 34vw, 380px);
+      display: block;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .015)),
+        #11161c;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .history-source {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .file-btn {
+      position: relative;
+      display: inline-grid;
+      place-items: center;
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 8px;
+      color: var(--text);
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .file-btn input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .boss,
+    .achievement,
+    .review-box {
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+    }
+
+    .boss h3,
+    .achievement h3,
+    .review-box h3 {
+      font-size: 15px;
+      margin-bottom: 8px;
+    }
+
+    .boss p,
+    .achievement p,
+    .review-box p {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 86px;
+      resize: vertical;
+      margin-top: 10px;
+      color: var(--text);
+      background: #11151a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 11px;
+      outline: none;
+    }
+
+    @media (max-width: 1050px) {
+      .layout,
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .app {
+        width: min(100% - 20px, 1280px);
+        padding-top: 18px;
+      }
+
+      .topbar,
+      .boredom,
+      .boss-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .history-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .modes {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 34px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .history-summary {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">Life RPG v0.1</div>
+        <h1>杰的人生 RPG 状态面板</h1>
+        <p class="subtitle">先判断今天的状态，再给出合适任务。低能量就恢复，高能量就打 Boss，无聊时直接抽一张现在能做的卡。</p>
+      </div>
+      <div class="date-chip">
+        <span>今日存档</span>
+        <span id="todayText">--</span>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <h2>状态录入</h2>
+            <span>1 = 很低，5 = 很满</span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <form class="status-form" id="statusForm">
+            <div class="metric">
+              <div class="metric-row"><label for="energy">精力</label><span class="metric-value" id="energyValue">3</span></div>
+              <input id="energy" name="energy" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="mood">情绪</label><span class="metric-value" id="moodValue">3</span></div>
+              <input id="mood" name="mood" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="body">身体</label><span class="metric-value" id="bodyValue">3</span></div>
+              <input id="body" name="body" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="focus">专注</label><span class="metric-value" id="focusValue">3</span></div>
+              <input id="focus" name="focus" type="range" min="1" max="5" value="3">
+            </div>
+            <div class="metric">
+              <div class="metric-row"><label for="social">社交欲</label><span class="metric-value" id="socialValue">3</span></div>
+              <input id="social" name="social" type="range" min="1" max="5" value="3">
+            </div>
+          </form>
+
+          <div class="metric" style="margin-top: 18px;">
+            <div class="metric-row"><label>当前更像</label><span class="small-muted">可手动覆盖</span></div>
+            <div class="modes" id="modeButtons"></div>
+          </div>
+
+          <div class="actions">
+            <button class="primary-btn" id="recommendBtn" type="button">生成今日任务</button>
+            <button class="ghost-btn" id="resetBtn" type="button">重置状态</button>
+            <button class="ghost-btn" id="copyCodexBtn" type="button">复制给 Codex</button>
+          </div>
+          <div class="copy-status" id="copyStatus">调好状态后复制给 Codex，我会写入 records。</div>
+        </div>
+      </aside>
+
+      <section class="main-grid">
+        <div class="summary-grid">
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>五维状态雷达</h2>
+                <span>越靠外越适合推进高强度任务</span>
+              </div>
+            </div>
+            <div class="panel-body radar-wrap">
+              <canvas id="radar" width="420" height="420" aria-label="五维状态雷达图"></canvas>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div class="panel-title">
+                <h2>今日模式</h2>
+                <span>状态解释与行动原则</span>
+              </div>
+            </div>
+            <div class="panel-body mode-summary">
+              <div class="mode-badge" id="modeBadge">普通</div>
+              <div class="directive" id="directiveText">今天适合做 1 个成长任务、1 个生活任务、1 个轻娱乐任务，保持节奏即可。</div>
+              <div class="small-muted" id="xpHint">今日推荐 XP：45</div>
+            </div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>六维属性</h2>
+              <span>完成任务后把 XP 记到对应属性</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="stats" id="stats"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>今日任务卡</h2>
+              <span>恢复、成长、娱乐各选一个，完成比完美重要</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="cards" id="taskCards"></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>反无聊抽卡</h2>
+              <span>不知道干什么时，按当前状态抽一个动作</span>
+            </div>
+          </div>
+          <div class="panel-body boredom">
+            <div class="draw-result" id="drawResult">还没抽卡。点击右侧按钮，拿一个现在能执行的小动作。</div>
+            <button class="primary-btn" id="drawBtn" type="button">抽一张</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>历史趋势</h2>
+              <span>从 Markdown 日志汇总出的 7/30 天动态变化</span>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="history-summary" id="historySummary"></div>
+            <canvas id="trend" width="920" height="280" aria-label="最近状态趋势图"></canvas>
+            <div class="history-tools">
+              <span class="history-source" id="historySource">正在读取 data/history.json...</span>
+              <label class="file-btn">
+                导入 history.json
+                <input id="historyFile" type="file" accept="application/json,.json">
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="boss-grid">
+          <div class="boss">
+            <h3>本周 Boss</h3>
+            <p id="bossText">拖延 Boss：选择一个堆积任务，拆成 3 个 20 分钟小回合。</p>
+          </div>
+          <div class="achievement">
+            <h3>近期成就</h3>
+            <p id="achievementText">连续三天完成状态记录；完成一次 30 分钟运动；整理一次桌面。</p>
+          </div>
+        </section>
+
+        <section class="review-box">
+          <h3>一句复盘</h3>
+          <p id="reviewPrompt">今晚只回答一句：今天什么事让状态变好了？</p>
+          <textarea id="reviewText" placeholder="写一句就行，比如：跑步后脑子清醒了，晚上少刷 30 分钟短视频。"></textarea>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊", "想社交", "想创造"];
+    const metrics = [
+      { key: "energy", label: "精力" },
+      { key: "mood", label: "情绪" },
+      { key: "body", label: "身体" },
+      { key: "focus", label: "专注" },
+      { key: "social", label: "社交欲" }
+    ];
+
+    const profile = {
+      attributes: [
+        { name: "体能", level: 2, xp: 42, next: 100, color: "#41d38b" },
+        { name: "智识", level: 3, xp: 68, next: 100, color: "#48c9e8" },
+        { name: "创造", level: 2, xp: 55, next: 100, color: "#f3b94e" },
+        { name: "工程", level: 2, xp: 35, next: 100, color: "#a98bff" },
+        { name: "社交", level: 1, xp: 28, next: 100, color: "#f06d62" },
+        { name: "秩序", level: 2, xp: 74, next: 100, color: "#9bd66f" }
+      ],
+      boss: "拖延 Boss：选择一个堆积任务，拆成 3 个 20 分钟小回合。",
+      achievements: ["连续三天完成状态记录", "完成一次 30 分钟运动", "整理一次桌面"]
+    };
+
+    const tasks = [
+      { title: "晒太阳或散步 12 分钟", attr: "体能", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "烦躁", "空虚"], type: "恢复", note: "先让身体离开原地，别急着变强。" },
+      { title: "收拾桌面 10 分钟", attr: "秩序", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "无聊", "空虚"], type: "恢复", note: "只收 10 分钟，结束后允许停止。" },
+      { title: "读一页论文或一本书", attr: "智识", energy: "低", time: "10 分钟", xp: 5, states: ["普通", "低能量"], type: "成长", note: "把门槛压低，目标是恢复进入状态的能力。" },
+      { title: "跑步或快走 25 分钟", attr: "体能", energy: "中", time: "30 分钟", xp: 20, states: ["烦躁", "普通", "高能量"], type: "成长", note: "适合脑子乱、身体钝的时候。" },
+      { title: "做一个代码/AI 小功能", attr: "工程", energy: "中", time: "45 分钟", xp: 20, states: ["普通", "想创造", "高能量"], type: "成长", note: "只做一个可见的小改动，别开大坑。" },
+      { title: "画一张速写或 UI 草图", attr: "创造", energy: "中", time: "30 分钟", xp: 20, states: ["想创造", "无聊", "普通"], type: "娱乐", note: "重点是动手，不追求成品。" },
+      { title: "给一个朋友发近况", attr: "社交", energy: "低", time: "10 分钟", xp: 5, states: ["想社交", "空虚", "普通"], type: "社交", note: "一句真诚近况就够，不需要组织大型聊天。" },
+      { title: "约一顿饭或一次散步", attr: "社交", energy: "中", time: "60 分钟", xp: 20, states: ["想社交", "高能量"], type: "社交", note: "优先约低压力的人。" },
+      { title: "完成一个两小时 Boss 回合", attr: "智识", energy: "高", time: "2 小时", xp: 60, states: ["高能量"], type: "Boss", note: "选择论文、实验复盘、代码项目中的一个推进。" },
+      { title: "城市探索半天副本", attr: "创造", energy: "高", time: "半天", xp: 60, states: ["无聊", "高能量", "想创造"], type: "娱乐", note: "带着一个主题出门，比如拍 12 张有结构感的照片。" },
+      { title: "洗澡 + 换衣 + 清理 5 件物品", attr: "秩序", energy: "低", time: "30 分钟", xp: 20, states: ["低能量", "空虚"], type: "恢复", note: "低谷日的重启组合。" },
+      { title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。" }
+    ];
+
+    const directives = {
+      "低能量": "今天先恢复系统稳定性。只做低门槛任务，避免硬打高压 Boss。",
+      "普通": "今天适合做 1 个成长任务、1 个生活任务、1 个轻娱乐任务，保持节奏即可。",
+      "高能量": "今天可以开 Boss 战。先选一个高价值任务，给它 60 到 120 分钟完整回合。",
+      "烦躁": "优先运动、出门、清理环境，让身体先降噪，再考虑学习或项目。",
+      "空虚": "优先真实反馈：联系人、换环境、做一个能看见结果的小任务。",
+      "无聊": "不要默认刷信息流。抽卡，换地点，做一个有一点随机性的活动。",
+      "想社交": "今天适合维护关系。发消息、约饭、语音聊天都算有效推进。",
+      "想创造": "把灵感落成一个小作品。画、写、建模、写代码都可以，别让它只停在脑内。"
+    };
+
+    const fallbackHistory = [
+      { date: "2026-05-13", energy: 2, mood: 3, body: 2, focus: 2, social: 1, mode: "低能量", xp: { "体能": 5, "秩序": 20 }, completedTasks: 2 },
+      { date: "2026-05-14", energy: 3, mood: 3, body: 3, focus: 3, social: 2, mode: "普通", xp: { "智识": 5, "创造": 20 }, completedTasks: 2 },
+      { date: "2026-05-15", energy: 4, mood: 4, body: 4, focus: 4, social: 3, mode: "高能量", xp: { "智识": 60, "工程": 20 }, completedTasks: 2 },
+      { date: "2026-05-16", energy: 3, mood: 2, body: 3, focus: 2, social: 1, mode: "烦躁", xp: { "体能": 20, "秩序": 5 }, completedTasks: 2 },
+      { date: "2026-05-17", energy: 3, mood: 3, body: 3, focus: 2, social: 2, mode: "无聊", xp: { "创造": 60, "工程": 20 }, completedTasks: 2 },
+      { date: "2026-05-18", energy: 4, mood: 3, body: 4, focus: 3, social: 4, mode: "想社交", xp: { "社交": 20, "体能": 5 }, completedTasks: 2 },
+      { date: "2026-05-19", energy: 3, mood: 3, body: 3, focus: 3, social: 3, mode: "普通", xp: { "智识": 5, "创造": 20, "秩序": 5 }, completedTasks: 3 }
+    ];
+
+    const state = {
+      mode: localStorage.getItem("lifeRpgMode") || "普通",
+      history: fallbackHistory
+    };
+
+    function init() {
+      document.getElementById("todayText").textContent = new Date().toLocaleDateString("zh-CN", {
+        year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
+      });
+      buildModeButtons();
+      buildStats();
+      bindInputs();
+      restoreInputs();
+      updateAll();
+      document.getElementById("recommendBtn").addEventListener("click", () => {
+        state.mode = inferMode();
+        localStorage.setItem("lifeRpgMode", state.mode);
+        updateAll();
+      });
+      document.getElementById("resetBtn").addEventListener("click", resetInputs);
+      document.getElementById("drawBtn").addEventListener("click", drawBoredom);
+      document.getElementById("copyCodexBtn").addEventListener("click", copyForCodex);
+      document.getElementById("historyFile").addEventListener("change", importHistory);
+      document.getElementById("reviewText").value = localStorage.getItem("lifeRpgReview") || "";
+      document.getElementById("reviewText").addEventListener("input", event => {
+        localStorage.setItem("lifeRpgReview", event.target.value);
+      });
+      loadHistory();
+    }
+
+    function buildModeButtons() {
+      const wrap = document.getElementById("modeButtons");
+      wrap.innerHTML = modes.map(mode => `<button class="mode-btn" type="button" data-mode="${mode}">${mode}</button>`).join("");
+      wrap.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => {
+          state.mode = button.dataset.mode;
+          localStorage.setItem("lifeRpgMode", state.mode);
+          updateAll();
+        });
+      });
+    }
+
+    function buildStats() {
+      const stats = document.getElementById("stats");
+      stats.innerHTML = profile.attributes.map(item => {
+        const pct = Math.round(item.xp / item.next * 100);
+        return `
+          <div class="stat">
+            <div class="stat-head">
+              <strong>${item.name} Lv.${item.level}</strong>
+              <span>${item.xp}/${item.next} XP</span>
+            </div>
+            <div class="bar"><span style="width:${pct}%; background:linear-gradient(90deg, ${item.color}, #ffffff);"></span></div>
+          </div>`;
+      }).join("");
+      document.getElementById("bossText").textContent = profile.boss;
+      document.getElementById("achievementText").textContent = profile.achievements.join("；") + "。";
+    }
+
+    function bindInputs() {
+      metrics.forEach(metric => {
+        const input = document.getElementById(metric.key);
+        const sync = () => syncMetric(metric.key);
+        input.addEventListener("input", sync);
+        input.addEventListener("change", sync);
+        input.addEventListener("pointerup", sync);
+        input.addEventListener("keyup", sync);
+      });
+    }
+
+    function syncMetric(key) {
+      const input = document.getElementById(key);
+      document.getElementById(`${key}Value`).textContent = input.value;
+      saveInputs();
+      updateRadar();
+    }
+
+    function restoreInputs() {
+      metrics.forEach(metric => {
+        const saved = localStorage.getItem(`lifeRpg_${metric.key}`);
+        if (saved) document.getElementById(metric.key).value = saved;
+        syncMetric(metric.key);
+      });
+    }
+
+    function saveInputs() {
+      metrics.forEach(metric => localStorage.setItem(`lifeRpg_${metric.key}`, document.getElementById(metric.key).value));
+    }
+
+    function resetInputs() {
+      metrics.forEach(metric => {
+        document.getElementById(metric.key).value = 3;
+        document.getElementById(`${metric.key}Value`).textContent = 3;
+        localStorage.removeItem(`lifeRpg_${metric.key}`);
+      });
+      state.mode = "普通";
+      localStorage.setItem("lifeRpgMode", state.mode);
+      updateAll();
+    }
+
+    function getScores() {
+      return Object.fromEntries(metrics.map(metric => [metric.key, Number(document.getElementById(metric.key).value)]));
+    }
+
+    function inferMode() {
+      const s = getScores();
+      const avg = (s.energy + s.mood + s.body + s.focus) / 4;
+      if (s.social >= 4 && s.energy >= 3) return "想社交";
+      if (s.energy <= 2 || s.body <= 2) return "低能量";
+      if (s.mood <= 2 && s.energy >= 3) return "烦躁";
+      if (s.mood <= 2 && s.social <= 2) return "空虚";
+      if (s.energy >= 4 && s.focus >= 4) return "高能量";
+      if (avg >= 3.2 && s.focus <= 2) return "无聊";
+      return "普通";
+    }
+
+    function updateAll() {
+      document.querySelectorAll(".mode-btn").forEach(button => {
+        button.classList.toggle("active", button.dataset.mode === state.mode);
+      });
+      document.getElementById("modeBadge").textContent = state.mode;
+      document.getElementById("directiveText").textContent = directives[state.mode];
+      updateRadar();
+      renderTasks();
+      renderHistory();
+    }
+
+    function updateRadar() {
+      const canvas = document.getElementById("radar");
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+      const radius = 150;
+      const scores = getScores();
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineWidth = 1;
+      ctx.font = "15px Microsoft YaHei, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      for (let ring = 1; ring <= 5; ring++) {
+        drawPolygon(ctx, metrics.map((_, i) => point(i, ring / 5 * radius, cx, cy)), "rgba(255,255,255,.13)", null);
+      }
+
+      metrics.forEach((metric, i) => {
+        const outer = point(i, radius, cx, cy);
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(outer.x, outer.y);
+        ctx.strokeStyle = "rgba(255,255,255,.14)";
+        ctx.stroke();
+        const label = point(i, radius + 34, cx, cy);
+        ctx.fillStyle = "#dfeaf0";
+        ctx.fillText(metric.label, label.x, label.y);
+      });
+
+      const dataPoints = metrics.map((metric, i) => point(i, scores[metric.key] / 5 * radius, cx, cy));
+      drawPolygon(ctx, dataPoints, "#41d38b", "rgba(65, 211, 139, .32)");
+      dataPoints.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "#f3b94e";
+        ctx.fill();
+      });
+    }
+
+    function point(index, r, cx, cy) {
+      const angle = Math.PI * 2 / metrics.length * index - Math.PI / 2;
+      return { x: cx + Math.cos(angle) * r, y: cy + Math.sin(angle) * r };
+    }
+
+    function drawPolygon(ctx, points, stroke, fill) {
+      ctx.beginPath();
+      points.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+      ctx.closePath();
+      if (fill) {
+        ctx.fillStyle = fill;
+        ctx.fill();
+      }
+      ctx.strokeStyle = stroke;
+      ctx.stroke();
+    }
+
+    function renderTasks() {
+      const matched = tasks.filter(task => task.states.includes(state.mode));
+      const fallback = tasks.filter(task => ["普通", "低能量"].some(s => task.states.includes(s)));
+      const pool = matched.length >= 3 ? matched : [...matched, ...fallback];
+      const selected = pickTaskSet(pool);
+      const totalXp = selected.reduce((sum, task) => sum + task.xp, 0);
+      document.getElementById("xpHint").textContent = `今日推荐 XP：${totalXp}`;
+      document.getElementById("taskCards").innerHTML = selected.map(task => `
+        <article class="task-card">
+          <div class="task-kind">${task.type}</div>
+          <h3>${task.title}</h3>
+          <p>${task.note}</p>
+          <div class="task-meta">
+            <span class="pill">${task.attr}</span>
+            <span class="pill">${task.time}</span>
+            <span class="pill">+${task.xp} XP</span>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function pickTaskSet(pool) {
+      const wanted = ["恢复", "成长", state.mode === "想社交" ? "社交" : "娱乐"];
+      const chosen = [];
+      wanted.forEach(type => {
+        const found = pool.find(task => task.type === type && !chosen.includes(task));
+        if (found) chosen.push(found);
+      });
+      pool.forEach(task => {
+        if (chosen.length < 3 && !chosen.includes(task)) chosen.push(task);
+      });
+      return chosen.slice(0, 3);
+    }
+
+    function drawBoredom() {
+      const pool = tasks.filter(task => task.states.includes(state.mode));
+      const drawPool = pool.length ? pool : tasks;
+      const task = drawPool[Math.floor(Math.random() * drawPool.length)];
+      document.getElementById("drawResult").innerHTML = `<strong>${task.title}</strong><br>${task.note}<br><span class="small-muted">${task.time} · ${task.attr} · +${task.xp} XP</span>`;
+    }
+
+    async function copyForCodex() {
+      const text = buildCodexPayload();
+      const status = document.getElementById("copyStatus");
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = "已复制。把剪贴板内容发给 Codex 即可写入 records。";
+      } catch (error) {
+        status.textContent = "浏览器阻止自动复制，请手动选中下方文本复制。";
+        showCopyFallback(text);
+      }
+    }
+
+    function buildCodexPayload() {
+      const scores = getScores();
+      const date = new Date().toISOString().slice(0, 10);
+      const selected = getCurrentRecommendedTasks();
+      const review = document.getElementById("reviewText").value.trim();
+      const taskLines = selected.map(task => `- ${task.type}任务：${task.title}｜${task.attr}｜+${task.xp} XP`).join("\n");
+      const xpLines = summarizeXp(selected).map(([attr, xp]) => `- ${attr}：${xp}`).join("\n");
+      return [
+        "启动人生 RPG",
+        `日期：${date}`,
+        `精力：${scores.energy}`,
+        `情绪：${scores.mood}`,
+        `身体：${scores.body}`,
+        `专注：${scores.focus}`,
+        `社交欲：${scores.social}`,
+        `状态：${state.mode}`,
+        "今日推荐：",
+        taskLines,
+        "XP 归属：",
+        xpLines,
+        "一句复盘：",
+        review || "（未填写）"
+      ].join("\n");
+    }
+
+    function getCurrentRecommendedTasks() {
+      const matched = tasks.filter(task => task.states.includes(state.mode));
+      const fallback = tasks.filter(task => ["普通", "低能量"].some(s => task.states.includes(s)));
+      const pool = matched.length >= 3 ? matched : [...matched, ...fallback];
+      return pickTaskSet(pool);
+    }
+
+    function summarizeXp(selected) {
+      const attrs = ["体能", "智识", "创造", "工程", "社交", "秩序"];
+      const totals = Object.fromEntries(attrs.map(attr => [attr, 0]));
+      selected.forEach(task => {
+        totals[task.attr] = (totals[task.attr] || 0) + task.xp;
+      });
+      return attrs.map(attr => [attr, totals[attr]]);
+    }
+
+    function showCopyFallback(text) {
+      let box = document.getElementById("codexPayloadFallback");
+      if (!box) {
+        box = document.createElement("textarea");
+        box.id = "codexPayloadFallback";
+        box.readOnly = true;
+        box.style.minHeight = "180px";
+        document.querySelector("aside .panel-body").appendChild(box);
+      }
+      box.value = text;
+      box.focus();
+      box.select();
+    }
+
+    async function loadHistory() {
+      if (location.protocol === "file:") {
+        state.history = fallbackHistory;
+        document.getElementById("historySource").textContent = "当前为本地文件模式；如需真实历史，请导入 data/history.json";
+        renderHistory();
+        return;
+      }
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
+        const response = await fetch("data/history.json", { cache: "no-store", signal: controller.signal });
+        clearTimeout(timeout);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        state.history = normalizeHistory(payload);
+        document.getElementById("historySource").textContent = "已读取 data/history.json";
+      } catch (error) {
+        state.history = fallbackHistory;
+        document.getElementById("historySource").textContent = "当前使用内置示例；本地双击受限时可手动导入 history.json";
+      }
+      renderHistory();
+    }
+
+    function importHistory(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          state.history = normalizeHistory(JSON.parse(reader.result));
+          document.getElementById("historySource").textContent = `已导入 ${file.name}`;
+          renderHistory();
+        } catch (error) {
+          document.getElementById("historySource").textContent = "导入失败：history.json 格式不正确";
+        }
+      };
+      reader.readAsText(file, "utf-8");
+    }
+
+    function normalizeHistory(payload) {
+      const records = Array.isArray(payload) ? payload : payload.records;
+      return records
+        .map(record => ({
+          date: record.date,
+          energy: Number(record.energy || record.scores?.energy || 0),
+          mood: Number(record.mood || record.scores?.mood || 0),
+          body: Number(record.body || record.scores?.body || 0),
+          focus: Number(record.focus || record.scores?.focus || 0),
+          social: Number(record.social || record.scores?.social || 0),
+          mode: record.mode || "普通",
+          xp: record.xp || {},
+          completedTasks: Number(record.completedTasks || 0)
+        }))
+        .filter(record => record.date)
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+
+    function renderHistory() {
+      const records = state.history.slice(-30);
+      if (!records.length) return;
+      const lowDays = records.filter(record => record.mode === "低能量" || record.energy <= 2).length;
+      const avgEnergy = average(records.map(record => record.energy));
+      const streak = currentStreak(records);
+      const topAttr = topXpAttribute(records);
+      document.getElementById("historySummary").innerHTML = [
+        { value: `${streak} 天`, label: "连续记录" },
+        { value: avgEnergy.toFixed(1), label: "30 天平均精力" },
+        { value: `${lowDays} 天`, label: "低能量/恢复日" },
+        { value: topAttr, label: "最高频 XP 属性" }
+      ].map(item => `<div class="history-kpi"><strong>${item.value}</strong><span>${item.label}</span></div>`).join("");
+      drawTrend(records.slice(-7));
+    }
+
+    function drawTrend(records) {
+      const canvas = document.getElementById("trend");
+      canvas.classList.add("trend-chart");
+      const cssWidth = canvas.clientWidth || 920;
+      const cssHeight = canvas.clientHeight || 320;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(cssWidth * ratio);
+      canvas.height = Math.round(cssHeight * ratio);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const w = cssWidth;
+      const h = cssHeight;
+      const pad = { left: 48, right: 24, top: 26, bottom: 78 };
+      const plotW = w - pad.left - pad.right;
+      const plotH = h - pad.top - pad.bottom;
+      ctx.clearRect(0, 0, w, h);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+
+      roundRect(ctx, pad.left, pad.top, plotW, plotH, 8);
+      ctx.fillStyle = "rgba(255, 255, 255, .025)";
+      ctx.fill();
+
+      for (let score = 1; score <= 5; score++) {
+        const y = pad.top + plotH - (score - 1) / 4 * plotH;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(w - pad.right, y);
+        ctx.lineWidth = score === 1 ? 1.2 : 1;
+        ctx.strokeStyle = score === 1 ? "rgba(255,255,255,.20)" : "rgba(255,255,255,.09)";
+        ctx.stroke();
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText(String(score), pad.left - 14, y + 4);
+      }
+
+      const series = [
+        { key: "energy", label: "精力", color: "#41d38b" },
+        { key: "mood", label: "情绪", color: "#f3b94e" },
+        { key: "body", label: "身体", color: "#48c9e8" },
+        { key: "focus", label: "专注", color: "#a98bff" },
+        { key: "social", label: "社交", color: "#f06d62" }
+      ];
+
+      series.forEach((item, seriesIndex) => {
+        const points = records.map((record, index) => ({
+          x: pad.left + (records.length === 1 ? plotW / 2 : index / (records.length - 1) * plotW),
+          y: pad.top + plotH - (record[item.key] - 1) / 4 * plotH
+        }));
+        ctx.beginPath();
+        drawPointAlignedLine(ctx, points);
+        ctx.shadowColor = item.color;
+        ctx.shadowBlur = 7;
+        ctx.strokeStyle = item.color;
+        ctx.lineWidth = 2.4;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+        points.forEach(point => {
+          ctx.beginPath();
+          ctx.arc(point.x, point.y, 4.2, 0, Math.PI * 2);
+          ctx.fillStyle = item.color;
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#11161c";
+          ctx.stroke();
+        });
+        ctx.fillStyle = item.color;
+        ctx.textAlign = "left";
+        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+        const lx = pad.left + (seriesIndex % 3) * 98;
+        const ly = h - 42 + Math.floor(seriesIndex / 3) * 22;
+        ctx.beginPath();
+        ctx.arc(lx, ly - 4, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillText(item.label, lx + 10, ly);
+      });
+
+      ctx.fillStyle = "#9aa8b6";
+      ctx.textAlign = "center";
+      ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+      records.forEach((record, index) => {
+        const x = pad.left + (records.length === 1 ? plotW / 2 : index / (records.length - 1) * plotW);
+        ctx.fillText(record.date.slice(5), x, h - 58);
+      });
+      ctx.lineWidth = 1;
+    }
+
+    function drawPointAlignedLine(ctx, points) {
+      if (!points.length) return;
+      ctx.moveTo(points[0].x, points[0].y);
+      points.slice(1).forEach(point => ctx.lineTo(point.x, point.y));
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function average(values) {
+      const valid = values.filter(value => Number.isFinite(value) && value > 0);
+      return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : 0;
+    }
+
+    function currentStreak(records) {
+      const dates = new Set(records.map(record => record.date));
+      let cursor = new Date(records[records.length - 1].date + "T00:00:00");
+      let count = 0;
+      while (dates.has(cursor.toISOString().slice(0, 10))) {
+        count += 1;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return count;
+    }
+
+    function topXpAttribute(records) {
+      const totals = {};
+      records.forEach(record => {
+        Object.entries(record.xp || {}).forEach(([key, value]) => {
+          totals[key] = (totals[key] || 0) + Number(value || 0);
+        });
+      });
+      const winner = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+      return winner ? winner[0] : "暂无";
+    }
+
+    init();
+  </script>
+</body>
+</html>
