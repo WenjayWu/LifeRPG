@@ -20,6 +20,11 @@ LifeRPG 是一个个人状态、任务和复盘面板。现在的主链路是：
 LifeRPG/
 ├─ src/                    静态前端源码，GitHub Pages 发布目录
 │  ├─ index.html
+│  ├─ manifest.webmanifest
+│  ├─ sw.js
+│  ├─ assets/icon.svg
+│  ├─ assets/icon-192.png
+│  ├─ assets/icon-512.png
 │  ├─ css/style.css
 │  └─ js/
 │     ├─ app.js
@@ -56,6 +61,24 @@ $env:LIFERPG_PORT="8900"
 ```
 
 本地服务窗口要保持打开；关闭 PowerShell 后，`127.0.0.1` 页面就会停止。
+
+## 日常使用与手机安装
+
+日常使用优先打开 GitHub Pages 地址：
+
+```text
+https://wenjaywu.github.io/LifeRPG/
+```
+
+这个地址不依赖本地 PowerShell，电脑关机后手机也能继续访问。`http://127.0.0.1:8899/` 只用于本机开发和调试。
+
+当前页面已支持 PWA：
+
+1. 手机浏览器打开 GitHub Pages 地址。
+2. 在浏览器菜单里选择“添加到主屏幕”或“安装应用”。
+3. 之后从桌面图标打开 LifeRPG，仍然通过 Supabase 登录、读写和多端同步。
+
+离线时页面会明确提示“暂不能同步”。当前版本不做离线写入队列，所以断网期间的修改只保留在本机页面状态中；恢复网络后建议确认同步状态变为正常再刷新页面。
 
 ## Supabase 配置
 

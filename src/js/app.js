@@ -118,6 +118,8 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     let remoteReady = false;
     let applyingRemote = false;
     let saveStatusTimer = null;
+    let networkOnline = navigator.onLine !== false;
+    let lastSyncStatus = { message: "本地模式", mode: "local" };
 
     // 清理过期的完成任务（非今日）
     if (state.completedTasks.length > 0) {
@@ -216,6 +218,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
       });
       bindRemoteAuth();
+      bindNetworkStatus();
       buildModeButtons();
       buildStats();
       bindInputs();
@@ -252,6 +255,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           setSyncStatus("Supabase 未配置，先填写 src/js/config.js", "error");
           return;
         }
+        if (!networkOnline) {
+          setSyncStatus("当前离线，恢复网络后再发送登录链接", "error");
+          return;
+        }
         const email = document.getElementById("authEmail").value.trim();
         if (!email) {
           showToast("先填写登录邮箱");
@@ -272,9 +279,30 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
     }
 
+    function bindNetworkStatus() {
+      renderSyncStatus(lastSyncStatus.message, lastSyncStatus.mode);
+      window.addEventListener("offline", () => {
+        networkOnline = false;
+        renderSyncStatus(lastSyncStatus.message, lastSyncStatus.mode);
+      });
+      window.addEventListener("online", async () => {
+        networkOnline = true;
+        renderSyncStatus(lastSyncStatus.message, lastSyncStatus.mode);
+        if (remoteReady) {
+          setSyncStatus("网络已恢复，正在同步当前页面状态", "remote");
+          const saved = await persistStatus();
+          if (saved) await loadRemoteSnapshot();
+        }
+      });
+    }
+
     async function initRemoteStore() {
       if (!remoteStore?.isConfigured) {
         setSyncStatus("本地模式：配置 Supabase 后启用多端同步", "local");
+        return;
+      }
+      if (!networkOnline) {
+        setSyncStatus("Supabase 已配置；当前离线，恢复网络后再同步", "error");
         return;
       }
       try {
@@ -298,11 +326,28 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     function setSyncStatus(message, mode) {
+      lastSyncStatus = { message, mode };
+      renderSyncStatus(message, mode);
+    }
+
+    function renderSyncStatus(message, mode) {
       const status = document.getElementById("syncStatus");
       const dot = document.getElementById("syncDot");
+      const box = document.getElementById("syncBox");
       if (!status || !dot) return;
-      status.textContent = message;
-      dot.className = `sync-dot ${mode === "remote" ? "remote" : mode === "error" ? "error" : ""}`;
+      const offline = !networkOnline;
+      status.textContent = offline ? "离线：暂不能同步，当前改动仅保留在本机" : message;
+      dot.className = `sync-dot ${offline || mode === "error" ? "error" : mode === "remote" ? "remote" : ""}`;
+      if (box) box.classList.toggle("offline", offline);
+    }
+
+    function canWriteRemote(actionLabel) {
+      if (!remoteReady || applyingRemote) return false;
+      if (!networkOnline) {
+        setSyncStatus(`${actionLabel}未同步：当前离线，改动仅保留在本机`, "error");
+        return false;
+      }
+      return true;
     }
 
     function toggleAuthControls(loggedIn) {
@@ -316,7 +361,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function loadRemoteSnapshot() {
-      if (!remoteReady) return;
+      if (!remoteReady || !networkOnline) return;
       applyingRemote = true;
       try {
         const [entry, remoteTasks, remoteAttributes, remoteHistory] = await Promise.all([
@@ -382,7 +427,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function persistStatus() {
-      if (!remoteReady || applyingRemote) return null;
+      if (!canWriteRemote("状态")) return null;
       try {
         return await remoteStore.saveStatus(state.today, getScores(), state.mode);
       } catch (error) {
@@ -392,7 +437,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function persistReview(review) {
-      if (!remoteReady || applyingRemote) return;
+      if (!canWriteRemote("复盘")) return;
       try {
         await remoteStore.saveReview(state.today, review);
       } catch (error) {
@@ -715,7 +760,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       renderRecommendedTasks();
       renderTaskList();
       updateRefreshHint();
-      if (remoteReady) {
+      if (canWriteRemote("任务")) {
         try {
           await persistStatus();
           const row = await remoteStore.addTaskToToday(state.today, selectedTask);
@@ -733,7 +778,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       taskPool.selected = taskPool.selected.filter(s => s.title !== taskTitle);
       renderTaskList();
       updateRefreshHint();
-      if (remoteReady && task?.remoteId) {
+      if (task?.remoteId && canWriteRemote("任务删除")) {
         try {
           await remoteStore.removeTask(task.remoteId);
         } catch (error) {
@@ -759,7 +804,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       storage.set("lifeRpgCompletedDate", state.today);
       renderTaskList();
       buildStats();
-      if (remoteReady) {
+      if (canWriteRemote("完成状态")) {
         try {
           if (!task.remoteId) {
             const row = await remoteStore.addTaskToToday(state.today, task);
@@ -945,7 +990,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function loadHistory() {
-      if (remoteReady) {
+      if (remoteReady && networkOnline) {
         try {
           const remoteHistory = await remoteStore.loadHistory(30);
           if (remoteHistory?.length) {

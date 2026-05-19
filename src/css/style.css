@@ -197,6 +197,11 @@
       background: rgba(255, 255, 255, .035);
     }
 
+    .sync-box.offline {
+      border-color: rgba(240, 109, 98, .55);
+      background: rgba(240, 109, 98, .08);
+    }
+
     .sync-row {
       display: flex;
       align-items: center;
