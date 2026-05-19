@@ -187,6 +187,59 @@
       accent-color: var(--green);
     }
 
+    .sync-box {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .035);
+    }
+
+    .sync-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .sync-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 0 4px rgba(243, 185, 78, .13);
+    }
+
+    .sync-dot.remote {
+      background: var(--green);
+      box-shadow: 0 0 0 4px rgba(65, 211, 139, .13);
+    }
+
+    .sync-dot.error {
+      background: var(--red);
+      box-shadow: 0 0 0 4px rgba(240, 109, 98, .13);
+    }
+
+    .auth-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .auth-row input {
+      min-height: 38px;
+      color: var(--text);
+      background: #11151a;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      outline: none;
+    }
+
     .modes {
       display: grid;
       grid-template-columns: repeat(2, 1fr);

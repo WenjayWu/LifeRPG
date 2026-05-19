@@ -111,10 +111,23 @@ def build_dist(project_root, dist_dir):
 
 def main():
     # 配置
-    NUTSTORE_URL = os.environ.get('NUTSTORE_WEBDAV_URL', 'https://dav.jianguoyun.com/dav/agent_lyra')
-    NUTSTORE_USER = os.environ.get('NUTSTORE_WEBDAV_USER', '1927046693@qq.com')
-    NUTSTORE_PASS = os.environ.get('NUTSTORE_WEBDAV_PASS', 'awafyiarq4uf6ii8')
+    NUTSTORE_URL = os.environ.get('NUTSTORE_WEBDAV_URL')
+    NUTSTORE_USER = os.environ.get('NUTSTORE_WEBDAV_USER')
+    NUTSTORE_PASS = os.environ.get('NUTSTORE_WEBDAV_PASS')
     REMOTE_ROOT = os.environ.get('LIFERPG_REMOTE_ROOT', '/LifeRPG_DEMO')
+
+    missing = [
+        name for name, value in {
+            'NUTSTORE_WEBDAV_URL': NUTSTORE_URL,
+            'NUTSTORE_WEBDAV_USER': NUTSTORE_USER,
+            'NUTSTORE_WEBDAV_PASS': NUTSTORE_PASS,
+        }.items()
+        if not value
+    ]
+    if missing:
+        print(f"缺少环境变量: {', '.join(missing)}")
+        print("坚果云现在只作为可选备份目标；请通过环境变量提供 WebDAV 凭据。")
+        sys.exit(1)
     
     # 项目路径
     script_dir = os.path.dirname(os.path.abspath(__file__))

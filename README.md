@@ -1,146 +1,169 @@
-# 杰的人生 RPG 状态面板
+# 杰的 LifeRPG 状态面板
 
-这是一个轻量的生活工作流系统：聊天里汇报状态，AI 给出今日任务；网页负责可视化展示、抽卡、任务库和历史趋势。
+LifeRPG 是一个个人状态、任务和复盘面板。现在的主链路是：
+
+- 前端：静态页面，可本地打开，也可部署到 GitHub Pages。
+- 运行数据：Supabase，负责登录、实时读写和多端同步。
+- Agent/API：后续通过 Supabase Edge Functions 读写同一套数据。
+- 备份：`records/*.md` 和 `data/history.json` 只作为导出/离线备份，不再作为日常实时同步核心。
+
+## 当前状态
+
+- 前端已经接入 Supabase 登录、状态保存、任务实例、属性和历史读取。
+- 本地历史数据可以通过 `sync/import-to-supabase.py` 导入 Supabase。
+- Supabase 数据可以通过 `sync/export-from-supabase.py` 导出回 Markdown 和 `history.json`。
+- 坚果云 WebDAV 已降级为可选备份目标，不再保存硬编码账号或应用密码。
 
 ## 项目结构
 
-```
+```text
 LifeRPG/
-├── src/                    ← 源码（GitHub）
-│   ├── index.html          ← 主入口
-│   ├── css/
-│   │   └── style.css       ← 全部样式
-│   └── js/
-│       └── app.js          ← 全部逻辑
-├── data/                   ← 运行时数据（坚果云同步，.gitignore）
-│   ├── profile.json
-│   ├── tasks.json
-│   └── history.json
-├── records/                ← 日志（坚果云同步，.gitignore）
-├── sync/                   ← 同步脚本
-│   ├── build-history.ps1   ← 生成 history.json
-│   ├── build-and-sync.ps1  ← 构建 + 推送到坚果云
-│   ├── pull-from-nutstore.ps1 ← 从坚果云拉取数据
-│   └── _webdav-common.ps1   ← WebDAV 公共配置
-├── templates/              ← 日志模板
-├── docs/                   ← 文档
-└── README.md
+├─ src/                    静态前端源码，GitHub Pages 发布目录
+│  ├─ index.html
+│  ├─ css/style.css
+│  └─ js/
+│     ├─ app.js
+│     ├─ config.js         前端 Supabase 公共配置
+│     └─ remote-store.js   Supabase 读写封装
+├─ supabase/
+│  ├─ migrations/          数据表、RLS、Realtime 配置
+│  └─ functions/           Edge Functions
+├─ sync/                   导入、导出、本地 CLI、可选备份脚本
+├─ records/                Markdown 备份
+├─ data/                   history/profile/tasks 离线备份
+└─ start-liferpg.ps1       本地启动脚本
 ```
 
-## 访问方式
+## 本地开发
 
-### 本地开发
-```bash
-cd src/
-python3 -m http.server 8080
-# 浏览器打开 http://localhost:8080
+在项目根目录运行：
+
+```powershell
+.\start-liferpg.ps1
 ```
 
-### 坚果云访问（部署后）
-1. 安装坚果云客户端，登录账号
-2. 同步 `LifeRPG_DEMO` 文件夹到本地
-3. 双击打开 `index.html`
-
-或者通过 WebDAV 直接访问（需输入账号密码）：
-```
-https://dav.jianguoyun.com/dav/agent_lyra/LifeRPG_DEMO/index.html
-```
-
-## 每日聊天格式
+默认访问：
 
 ```text
-精力 1-5：
-情绪 1-5：
-身体 1-5：
-专注 1-5：
-社交欲 1-5：
-现在更像：低能量 / 普通 / 高能量 / 烦躁 / 空虚 / 无聊 / 想社交 / 想创造？
-今天有什么硬性安排？
+http://127.0.0.1:8899/
 ```
 
-回复后，AI 会给出：
-- 今日模式判断
-- 今日 3 个推荐任务
-- 一个反无聊备选
-- 今日 Boss 或恢复建议
-- XP 归属
-- 一句晚上复盘问题
+也可以指定端口：
 
-## 同步流程
-
-### 推送到坚果云（发布新版本）
 ```powershell
-.\sync\build-and-sync.ps1
+$env:LIFERPG_PORT="8900"
+.\start-liferpg.ps1
 ```
 
-### 从坚果云拉取数据（换电脑或数据冲突）
+本地服务窗口要保持打开；关闭 PowerShell 后，`127.0.0.1` 页面就会停止。
+
+## Supabase 配置
+
+前端只允许放 Supabase Project URL 和 anon/publishable key。不要把 `service_role` key、WebDAV 密码或任何私密令牌写进前端文件。
+
+`src/js/config.js` 示例：
+
+```js
+window.LIFERPG_CONFIG = {
+  supabaseUrl: "https://你的项目.supabase.co",
+  supabaseAnonKey: "你的 anon/publishable key",
+  redirectTo: window.location.origin + window.location.pathname
+};
+```
+
+需要在 Supabase Auth 的 Redirect URLs 中加入你实际访问的地址，例如：
+
+```text
+http://127.0.0.1:8899/
+https://wenjaywu.github.io/LifeRPG/
+```
+
+## GitHub Pages 发布
+
+本仓库包含 GitHub Actions 工作流：`.github/workflows/pages.yml`。
+
+首次启用：
+
+1. 打开 GitHub 仓库 `Settings -> Pages`。
+2. Source 选择 `GitHub Actions`。
+3. 推送 `main` 分支后，Actions 会把 `src/` 发布到 GitHub Pages。
+4. 发布地址通常是：
+
+```text
+https://wenjaywu.github.io/LifeRPG/
+```
+
+发布后，把这个地址加入 Supabase Auth Redirect URLs。以后手机和电脑都访问这个固定网址，不需要本地 PowerShell。
+
+## 数据导入
+
+从本地 `data/history.json`、`records/*.md` 和 `data/profile.json` 导入 Supabase：
+
 ```powershell
-.\sync\pull-from-nutstore.ps1
+cd D:\Professional\Coding\Codex\LifeRPG
+
+$env:SUPABASE_URL="https://你的项目.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="你的 service_role key"
+$env:SUPABASE_USER_ID="你的 auth.users.id"
+
+python sync\import-to-supabase.py
 ```
 
-### Lyra 集成（聊天录入状态）
-```bash
-# 在飞书直接发送状态，Lyra 会自动解析并写入 records
-# 格式：精力3 情绪4 身体2 专注3 社交欲1 模式无聊 今天休息
+`service_role` key 只在当前 PowerShell 窗口里临时使用，不要提交到 Git。
 
-# 也可以手动运行 CLI
-python3 sync/life-rpg-cli.py '精力3 情绪4 身体2 专注3 社交欲1 模式无聊 今天休息'
-```
+## 数据导出备份
 
-### 构建 history.json（Linux/WSL）
-```bash
-python3 sync/build-history.py
-```
+从 Supabase 导出为 `records/*.md` 和 `data/history.json`：
 
-### 日常开发流程
 ```powershell
-# 1. 修改代码（src/ 目录）
-# 2. 提交到 GitHub
-git add .
-git commit -m "更新..."
-git push
+cd D:\Professional\Coding\Codex\LifeRPG
 
-# 3. 发布到坚果云
-.\sync\build-and-sync.ps1
+$env:SUPABASE_URL="https://你的项目.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="你的 service_role key"
+
+python sync\export-from-supabase.py
 ```
 
-## 数据管理
+导出的文件用于备份、审阅或离线 fallback；日常使用不再依赖手动拉取/上传这些文件。
 
-| 数据类型 | 存储位置 | 同步方式 |
-|---------|---------|---------|
-| 源码 | GitHub | git |
-| 运行时数据 | 坚果云 | WebDAV |
-| 日志 | 坚果云 | WebDAV |
-| 本地配置 | localStorage | 浏览器 |
+## Edge Functions
 
-## 坚果云 WebDAV 配置
+已准备的函数：
 
-环境变量（不写入代码）：
+- `submit_status`
+- `generate_daily_plan`
+- `complete_task`
+- `write_review`
+- `run_weekly_analysis`
+
+这些函数用于后续 Agent 闭环。稳定发布完成后，再部署并逐个验证。
+
+## 可选坚果云备份
+
+坚果云现在只作为可选备份目标。使用前在本地终端设置环境变量：
+
 ```powershell
-$env:NUTSTORE_WEBDAV_URL = "https://dav.jianguoyun.com/dav"
-$env:NUTSTORE_WEBDAV_USER = "你的账号"
-$env:NUTSTORE_WEBDAV_PASS = "你的应用密码"
+$env:NUTSTORE_WEBDAV_URL="https://dav.jianguoyun.com/dav"
+$env:NUTSTORE_WEBDAV_USER="你的账号"
+$env:NUTSTORE_WEBDAV_PASS="你的应用密码"
 ```
 
-## 已实现功能
+如果旧版本曾经把坚果云应用密码提交到 GitHub，请先在坚果云后台重置该应用密码。
 
-- [x] 代码重构（单文件 → 模块化）
-- [x] 任务完成系统 + XP 自动累加 + 属性升级
-- [x] 成就解锁系统（8个成就）
-- [x] Boss 血条 + 回合进度
-- [x] 技能树系统（6个技能）
-- [x] 周报表（模式分布、属性成长、任务完成率）
-- [x] 状态热力图（30天日历）
-- [x] 与 AI 集成（聊天录入状态）
+## 验证清单
 
-## 后续可升级
+本地静态检查：
 
-- [ ] 更多任务类型和自定义任务
-- [ ] 成就动画和音效
-- [ ] 数据导出为 CSV/PDF
-- [ ] 多设备实时同步（WebSocket）
-- [ ] 语音录入状态
+```powershell
+node --check src\js\app.js
+node --check src\js\remote-store.js
+python -m py_compile sync\build-history.py sync\life-rpg-cli.py sync\deploy.py sync\import-to-supabase.py sync\export-from-supabase.py
+```
 
----
+功能验证：
 
-*LifeRPG v0.1*
+- 登录后刷新页面，今日状态、复盘、任务和属性仍能恢复。
+- 修改状态后，Supabase `daily_entries` 更新。
+- 添加/完成任务后，Supabase `task_instances` 更新。
+- 完成任务后，`profile_attributes` 更新且 XP 不重复累计。
+- 手机和电脑同时打开 Pages 地址时，一个端修改，另一个端能自动更新。

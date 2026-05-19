@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>杰的人生 RPG 状态面板</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <main class="app">
@@ -51,6 +52,18 @@
               <input id="social" name="social" type="range" min="1" max="5" value="3">
             </div>
           </form>
+
+          <div class="sync-box" id="syncBox">
+            <div class="sync-row">
+              <span class="sync-dot" id="syncDot"></span>
+              <span id="syncStatus">本地模式</span>
+            </div>
+            <div class="auth-row" id="authRow">
+              <input id="authEmail" type="email" placeholder="Supabase 登录邮箱">
+              <button class="ghost-btn" id="loginBtn" type="button">发送登录链接</button>
+              <button class="ghost-btn" id="logoutBtn" type="button" hidden>退出</button>
+            </div>
+          </div>
 
           <div class="metric" style="margin-top: 18px;">
             <div class="metric-row"><label>当前更像</label><span class="small-muted">可手动覆盖</span></div>
@@ -249,6 +262,8 @@
     </section>
   </main>
 
+  <script src="js/config.js"></script>
+  <script src="js/remote-store.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

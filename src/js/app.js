@@ -114,6 +114,11 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       today: new Date().toISOString().slice(0, 10)
     };
 
+    const remoteStore = window.LifeRpgRemoteStore ? new window.LifeRpgRemoteStore() : null;
+    let remoteReady = false;
+    let applyingRemote = false;
+    let saveStatusTimer = null;
+
     // 清理过期的完成任务（非今日）
     if (state.completedTasks.length > 0) {
       const savedDate = storage.get("lifeRpgCompletedDate");
@@ -206,19 +211,20 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       }, 2500);
     }
 
-    function init() {
+    async function init() {
       document.getElementById("todayText").textContent = new Date().toLocaleDateString("zh-CN", {
         year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
       });
+      bindRemoteAuth();
       buildModeButtons();
       buildStats();
       bindInputs();
       restoreInputs();
-      updateAll();
       document.getElementById("recommendBtn").addEventListener("click", () => {
         state.mode = inferMode();
         storage.set("lifeRpgMode", state.mode);
         initTaskPool();
+        persistStatus();
         updateAll();
       });
       document.getElementById("resetBtn").addEventListener("click", resetInputs);
@@ -229,9 +235,169 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       document.getElementById("reviewText").value = storage.get("lifeRpgReview") || "";
       document.getElementById("reviewText").addEventListener("input", event => {
         storage.set("lifeRpgReview", event.target.value);
+        persistReview(event.target.value);
       });
-      loadHistory();
       initTaskPool();
+      await initRemoteStore();
+      updateAll();
+      loadHistory();
+    }
+
+    function bindRemoteAuth() {
+      const loginBtn = document.getElementById("loginBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      if (!loginBtn || !logoutBtn) return;
+      loginBtn.addEventListener("click", async () => {
+        if (!remoteStore?.isConfigured) {
+          setSyncStatus("Supabase 未配置，先填写 src/js/config.js", "error");
+          return;
+        }
+        const email = document.getElementById("authEmail").value.trim();
+        if (!email) {
+          showToast("先填写登录邮箱");
+          return;
+        }
+        try {
+          await remoteStore.signInWithEmail(email);
+          setSyncStatus("登录链接已发送，打开邮件完成登录", "remote");
+        } catch (error) {
+          setSyncStatus(`登录失败：${error.message}`, "error");
+        }
+      });
+      logoutBtn.addEventListener("click", async () => {
+        await remoteStore.signOut();
+        remoteReady = false;
+        setSyncStatus("已退出，当前为本地模式", "local");
+        toggleAuthControls(false);
+      });
+    }
+
+    async function initRemoteStore() {
+      if (!remoteStore?.isConfigured) {
+        setSyncStatus("本地模式：配置 Supabase 后启用多端同步", "local");
+        return;
+      }
+      try {
+        const result = await remoteStore.init();
+        if (result.mode === "login") {
+          setSyncStatus("Supabase 已配置，请登录以启用多端同步", "local");
+          toggleAuthControls(false);
+          return;
+        }
+        remoteReady = true;
+        toggleAuthControls(true);
+        setSyncStatus(`多端同步已启用：${result.user.email || "已登录"}`, "remote");
+        await loadRemoteSnapshot();
+        remoteStore.subscribeToday(state.today, () => {
+          if (!applyingRemote) loadRemoteSnapshot();
+        });
+      } catch (error) {
+        remoteReady = false;
+        setSyncStatus(`同步不可用：${error.message}`, "error");
+      }
+    }
+
+    function setSyncStatus(message, mode) {
+      const status = document.getElementById("syncStatus");
+      const dot = document.getElementById("syncDot");
+      if (!status || !dot) return;
+      status.textContent = message;
+      dot.className = `sync-dot ${mode === "remote" ? "remote" : mode === "error" ? "error" : ""}`;
+    }
+
+    function toggleAuthControls(loggedIn) {
+      const email = document.getElementById("authEmail");
+      const login = document.getElementById("loginBtn");
+      const logout = document.getElementById("logoutBtn");
+      if (!email || !login || !logout) return;
+      email.hidden = loggedIn;
+      login.hidden = loggedIn;
+      logout.hidden = !loggedIn;
+    }
+
+    async function loadRemoteSnapshot() {
+      if (!remoteReady) return;
+      applyingRemote = true;
+      try {
+        const [entry, remoteTasks, remoteAttributes, remoteHistory] = await Promise.all([
+          remoteStore.loadTodayState(state.today),
+          remoteStore.loadTaskInstances(state.today),
+          remoteStore.loadProfileAttributes(profile.attributes),
+          remoteStore.loadHistory(30)
+        ]);
+        profile.attributes = remoteAttributes;
+        if (entry) {
+          state.mode = entry.mode || state.mode;
+          storage.set("lifeRpgMode", state.mode);
+          metrics.forEach(metric => {
+            if (entry[metric.key] != null) {
+              document.getElementById(metric.key).value = entry[metric.key];
+              document.getElementById(`${metric.key}Value`).textContent = entry[metric.key];
+            }
+          });
+          if (entry.review != null) {
+            document.getElementById("reviewText").value = entry.review || "";
+            storage.set("lifeRpgReview", entry.review || "");
+          }
+        } else {
+          await persistStatus();
+        }
+        if (remoteTasks.length) {
+          taskPool.selected = remoteTasks.map(row => ({
+            remoteId: row.id,
+            title: row.title,
+            type: row.task_type,
+            attr: row.attribute,
+            xp: row.xp,
+            time: row.time_label,
+            note: row.note,
+            completed: row.completed
+          }));
+          state.completedTasks = taskPool.selected
+            .filter(task => task.completed)
+            .map(task => task.title);
+          storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
+          taskPool.recommended = taskPool.recommended.filter(task =>
+            !taskPool.selected.some(selected => selected.title === task.title)
+          );
+        }
+        if (remoteHistory?.length) {
+          state.history = remoteHistory;
+        }
+        buildStats();
+        renderTaskList();
+        renderRecommendedTasks();
+        updateRefreshHint();
+        updateAll();
+      } catch (error) {
+        setSyncStatus(`同步失败：${error.message}`, "error");
+      } finally {
+        applyingRemote = false;
+      }
+    }
+
+    function persistStatusDebounced() {
+      clearTimeout(saveStatusTimer);
+      saveStatusTimer = setTimeout(() => persistStatus(), 500);
+    }
+
+    async function persistStatus() {
+      if (!remoteReady || applyingRemote) return null;
+      try {
+        return await remoteStore.saveStatus(state.today, getScores(), state.mode);
+      } catch (error) {
+        setSyncStatus(`状态未保存：${error.message}`, "error");
+        return null;
+      }
+    }
+
+    async function persistReview(review) {
+      if (!remoteReady || applyingRemote) return;
+      try {
+        await remoteStore.saveReview(state.today, review);
+      } catch (error) {
+        setSyncStatus(`复盘未保存：${error.message}`, "error");
+      }
     }
 
     function buildModeButtons() {
@@ -241,6 +407,8 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         button.addEventListener("click", () => {
           state.mode = button.dataset.mode;
           storage.set("lifeRpgMode", state.mode);
+          initTaskPool();
+          persistStatus();
           updateAll();
         });
       });
@@ -278,6 +446,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const input = document.getElementById(key);
       document.getElementById(`${key}Value`).textContent = input.value;
       saveInputs();
+      persistStatusDebounced();
       updateRadar();
     }
 
@@ -301,6 +470,8 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
       state.mode = "普通";
       storage.set("lifeRpgMode", state.mode);
+      initTaskPool();
+      persistStatus();
       updateAll();
     }
 
@@ -529,7 +700,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       return shuffled;
     }
 
-    function addToList(task) {
+    async function addToList(task) {
       if (taskPool.selected.length >= 5) {
         showToast("任务清单已满（最多5个），先完成一些吧！");
         return;
@@ -538,33 +709,69 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         showToast("这个任务已经在清单里了");
         return;
       }
-      taskPool.selected.push({...task, completed: false});
+      const selectedTask = {...task, completed: false};
+      taskPool.selected.push(selectedTask);
       taskPool.recommended = taskPool.recommended.filter(r => r.title !== task.title);
       renderRecommendedTasks();
       renderTaskList();
       updateRefreshHint();
+      if (remoteReady) {
+        try {
+          await persistStatus();
+          const row = await remoteStore.addTaskToToday(state.today, selectedTask);
+          selectedTask.remoteId = row?.id;
+          renderTaskList();
+        } catch (error) {
+          setSyncStatus(`任务未同步：${error.message}`, "error");
+        }
+      }
       showToast(`✓ 已添加「${task.title}」到清单`);
     }
 
-    function removeFromList(taskTitle) {
+    async function removeFromList(taskTitle) {
+      const task = taskPool.selected.find(s => s.title === taskTitle);
       taskPool.selected = taskPool.selected.filter(s => s.title !== taskTitle);
       renderTaskList();
       updateRefreshHint();
+      if (remoteReady && task?.remoteId) {
+        try {
+          await remoteStore.removeTask(task.remoteId);
+        } catch (error) {
+          setSyncStatus(`删除未同步：${error.message}`, "error");
+        }
+      }
     }
 
-    function toggleTaskComplete(taskTitle) {
+    async function toggleTaskComplete(taskTitle) {
       const task = taskPool.selected.find(s => s.title === taskTitle);
       if (!task) return;
       task.completed = !task.completed;
       if (task.completed) {
+        if (!state.completedTasks.includes(taskTitle)) state.completedTasks.push(taskTitle);
         addXp(task.attr, task.xp);
         showToast(`✓ 完成「${taskTitle}」 +${task.xp} XP`);
       } else {
+        state.completedTasks = state.completedTasks.filter(title => title !== taskTitle);
         addXp(task.attr, -task.xp);
         showToast(`↩ 取消完成「${taskTitle}」 -${task.xp} XP`);
       }
+      storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
+      storage.set("lifeRpgCompletedDate", state.today);
       renderTaskList();
       buildStats();
+      if (remoteReady) {
+        try {
+          if (!task.remoteId) {
+            const row = await remoteStore.addTaskToToday(state.today, task);
+            task.remoteId = row?.id;
+          }
+          await remoteStore.completeTask(task.remoteId, task.completed);
+          await remoteStore.saveProfileAttributes(profile.attributes);
+          await persistStatus();
+        } catch (error) {
+          setSyncStatus(`完成状态未同步：${error.message}`, "error");
+        }
+      }
     }
 
     function renderRecommendedTasks() {
@@ -685,7 +892,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     function buildCodexPayload() {
       const scores = getScores();
       const date = new Date().toISOString().slice(0, 10);
-      const selected = getCurrentRecommendedTasks();
+      const selected = taskPool.selected.length ? taskPool.selected : getCurrentRecommendedTasks();
       const review = document.getElementById("reviewText").value.trim();
       const taskLines = selected.map(task => `- ${task.type}任务：${task.title}｜${task.attr}｜+${task.xp} XP`).join("\n");
       const xpLines = summarizeXp(selected).map(([attr, xp]) => `- ${attr}：${xp}`).join("\n");
@@ -738,6 +945,19 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function loadHistory() {
+      if (remoteReady) {
+        try {
+          const remoteHistory = await remoteStore.loadHistory(30);
+          if (remoteHistory?.length) {
+            state.history = remoteHistory;
+            document.getElementById("historySource").textContent = "已从 Supabase 实时数据读取历史";
+            renderHistory();
+            return;
+          }
+        } catch (error) {
+          setSyncStatus(`历史同步失败：${error.message}`, "error");
+        }
+      }
       if (location.protocol === "file:") {
         state.history = fallbackHistory;
         document.getElementById("historySource").textContent = "当前为本地文件模式；如需真实历史，请导入 data/history.json";
@@ -814,6 +1034,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     function renderWeeklyReport(records) {
       const weekRecords = records.slice(-7);
+      const topAttr = topXpAttribute(weekRecords);
       
       // 模式分布饼图
       const modeCounts = {};
@@ -906,6 +1127,13 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       ctx.clearRect(0, 0, w, h);
       
       const attrs = Object.entries(attrGrowth).sort((a, b) => b[1] - a[1]);
+      if (!attrs.length) {
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "13px Microsoft YaHei";
+        ctx.textAlign = "center";
+        ctx.fillText("暂无 XP 数据", w / 2, h / 2);
+        return;
+      }
       const max = Math.max(...attrs.map(a => a[1]), 1);
       const barW = plotW / attrs.length * 0.6;
       const gap = plotW / attrs.length;

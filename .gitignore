@@ -3,9 +3,14 @@
 
 # 环境变量
 .env
+src/js/config.local.js
 
 # 坚果云同步缓存
 .sync-cache/
+
+# Python 缓存
+__pycache__/
+*.pyc
 
 # 编辑器
 .vscode/

@@ -8,6 +8,7 @@ import os
 import re
 import json
 import sys
+import urllib.request
 from datetime import datetime
 
 
@@ -190,6 +191,33 @@ def write_record(status, tasks, xp_summary, records_dir='records'):
     return filepath
 
 
+def submit_to_remote(input_text):
+    """如果配置了 Supabase Edge Function，则直接写入远端实时数据源。"""
+    supabase_url = os.environ.get('SUPABASE_URL', '').rstrip('/')
+    anon_key = os.environ.get('SUPABASE_ANON_KEY')
+    access_token = os.environ.get('SUPABASE_ACCESS_TOKEN')
+    if not (supabase_url and anon_key and access_token):
+        return False
+
+    endpoint = f"{supabase_url}/functions/v1/submit_status"
+    payload = json.dumps({'text': input_text}, ensure_ascii=False).encode('utf-8')
+    request = urllib.request.Request(endpoint, data=payload, method='POST')
+    request.add_header('Content-Type', 'application/json')
+    request.add_header('apikey', anon_key)
+    request.add_header('Authorization', f'Bearer {access_token}')
+
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            result = json.loads(response.read().decode('utf-8'))
+    except Exception as exc:
+        print(f"远端提交失败，回退到本地写入: {exc}")
+        return False
+
+    print("✓ 已写入 Supabase 实时数据源")
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return True
+
+
 def main():
     """主入口"""
     if len(sys.argv) < 2:
@@ -197,6 +225,8 @@ def main():
         sys.exit(1)
     
     input_text = sys.argv[1]
+    if submit_to_remote(input_text):
+        return
     
     # 解析状态
     status = parse_status_input(input_text)
