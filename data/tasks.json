@@ -1,7 +1,8 @@
 [
   {
+    "key": "sun_walk",
     "title": "晒太阳或散步 12 分钟",
-    "attribute": "体能",
+    "attr": "体能",
     "energy": "低",
     "time": "10 分钟",
     "xp": 5,
@@ -10,8 +11,9 @@
     "note": "先让身体离开原地，别急着变强。"
   },
   {
+    "key": "tidy_desk",
     "title": "收拾桌面 10 分钟",
-    "attribute": "秩序",
+    "attr": "秩序",
     "energy": "低",
     "time": "10 分钟",
     "xp": 5,
@@ -20,8 +22,9 @@
     "note": "只收 10 分钟，结束后允许停止。"
   },
   {
+    "key": "read_page",
     "title": "读一页论文或一本书",
-    "attribute": "智识",
+    "attr": "智识",
     "energy": "低",
     "time": "10 分钟",
     "xp": 5,
@@ -30,8 +33,9 @@
     "note": "把门槛压低，目标是恢复进入状态的能力。"
   },
   {
+    "key": "run_25min",
     "title": "跑步或快走 25 分钟",
-    "attribute": "体能",
+    "attr": "体能",
     "energy": "中",
     "time": "30 分钟",
     "xp": 20,
@@ -40,8 +44,9 @@
     "note": "适合脑子乱、身体钝的时候。"
   },
   {
+    "key": "code_snippet",
     "title": "做一个代码/AI 小功能",
-    "attribute": "工程",
+    "attr": "工程",
     "energy": "中",
     "time": "45 分钟",
     "xp": 20,
@@ -50,8 +55,9 @@
     "note": "只做一个可见的小改动，别开大坑。"
   },
   {
+    "key": "sketch",
     "title": "画一张速写或 UI 草图",
-    "attribute": "创造",
+    "attr": "创造",
     "energy": "中",
     "time": "30 分钟",
     "xp": 20,
@@ -60,8 +66,9 @@
     "note": "重点是动手，不追求成品。"
   },
   {
+    "key": "social_msg",
     "title": "给一个朋友发近况",
-    "attribute": "社交",
+    "attr": "社交",
     "energy": "低",
     "time": "10 分钟",
     "xp": 5,
@@ -70,8 +77,9 @@
     "note": "一句真诚近况就够，不需要组织大型聊天。"
   },
   {
+    "key": "social_meal",
     "title": "约一顿饭或一次散步",
-    "attribute": "社交",
+    "attr": "社交",
     "energy": "中",
     "time": "60 分钟",
     "xp": 20,
@@ -80,8 +88,9 @@
     "note": "优先约低压力的人。"
   },
   {
+    "key": "boss_round",
     "title": "完成一个两小时 Boss 回合",
-    "attribute": "智识",
+    "attr": "智识",
     "energy": "高",
     "time": "2 小时",
     "xp": 60,
@@ -90,8 +99,9 @@
     "note": "选择论文、实验复盘、代码项目中的一个推进。"
   },
   {
+    "key": "city_explore",
     "title": "城市探索半天副本",
-    "attribute": "创造",
+    "attr": "创造",
     "energy": "高",
     "time": "半天",
     "xp": 60,
@@ -100,8 +110,9 @@
     "note": "带着一个主题出门，比如拍 12 张有结构感的照片。"
   },
   {
+    "key": "shower_reset",
     "title": "洗澡 + 换衣 + 清理 5 件物品",
-    "attribute": "秩序",
+    "attr": "秩序",
     "energy": "低",
     "time": "30 分钟",
     "xp": 20,
@@ -110,8 +121,9 @@
     "note": "低谷日的重启组合。"
   },
   {
+    "key": "3d_print",
     "title": "3D 打印/电子小项目推进一格",
-    "attribute": "工程",
+    "attr": "工程",
     "energy": "高",
     "time": "60 分钟",
     "xp": 20,
