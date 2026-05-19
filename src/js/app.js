@@ -35,6 +35,35 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       { title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。" }
     ];
 
+    const achievements = [
+      { id: "first_task", name: "初出茅庐", desc: "完成第一个任务", condition: (s) => s.completedTasks.length >= 1, icon: "🌱" },
+      { id: "three_tasks", name: "三连击", desc: "一天完成 3 个任务", condition: (s) => s.completedTasks.length >= 3, icon: "⚡" },
+      { id: "streak_3", name: "坚持者", desc: "连续记录 3 天", condition: (s) => currentStreak(s.history) >= 3, icon: "🔥" },
+      { id: "streak_7", name: "周常达人", desc: "连续记录 7 天", condition: (s) => currentStreak(s.history) >= 7, icon: "📅" },
+      { id: "level_up", name: "升级了", desc: "任意属性升到 Lv.3", condition: (s) => profile.attributes.some(a => a.level >= 3), icon: "⬆️" },
+      { id: "all_attrs_2", name: "全面发展", desc: "所有属性达到 Lv.2", condition: (s) => profile.attributes.every(a => a.level >= 2), icon: "🌟" },
+      { id: "boss_slayer", name: "Boss 杀手", desc: "完成一个 Boss 任务", condition: (s) => s.completedTasks.some(t => tasks.find(task => task.title === t)?.type === "Boss"), icon: "👹" },
+      { id: "social_butterfly", name: "社交蝴蝶", desc: "完成 5 个社交任务", condition: (s) => {
+        const socialTasks = s.completedTasks.filter(t => tasks.find(task => task.title === t)?.type === "社交");
+        return socialTasks.length >= 5;
+      }, icon: "🦋" }
+    ];
+
+    const bosses = [
+      { id: "procrastination", name: "拖延 Boss", maxHp: 100, currentHp: 60, rounds: 3, completedRounds: 1, reward: { xp: 50, attr: "秩序" }, desc: "选择一个堆积任务，拆成 3 个 20 分钟小回合。" },
+      { id: "distraction", name: "分心 Boss", maxHp: 80, currentHp: 80, rounds: 2, completedRounds: 0, reward: { xp: 40, attr: "专注" }, desc: "连续 45 分钟只做一件事，手机放另一个房间。" },
+      { id: "perfectionism", name: "完美主义 Boss", maxHp: 120, currentHp: 120, rounds: 4, completedRounds: 0, reward: { xp: 60, attr: "创造" }, desc: "故意做一个"够烂"的版本，30 分钟内不许修改。" }
+    ];
+
+    const skills = [
+      { id: "morning_run", name: "晨跑", attr: "体能", reqLevel: 3, effect: "解锁晨跑任务，体能 XP+50%", unlocked: false },
+      { id: "deep_work", name: "深度工作", attr: "专注", reqLevel: 3, effect: "专注任务时间减半，XP 不变", unlocked: false },
+      { id: "social_master", name: "社交达人", attr: "社交", reqLevel: 2, effect: "社交任务 XP+100%", unlocked: false },
+      { id: "creative_burst", name: "创意爆发", attr: "创造", reqLevel: 4, effect: "无聊时抽卡必出创造任务", unlocked: false },
+      { id: "code_ninja", name: "代码忍者", attr: "工程", reqLevel: 3, effect: "工程任务时间减半", unlocked: false },
+      { id: "knowledge_seeker", name: "求知者", attr: "智识", reqLevel: 2, effect: "阅读任务 XP+50%", unlocked: false }
+    ];
+
     const directives = {
       "低能量": "今天先恢复系统稳定性。只做低门槛任务，避免硬打高压 Boss。",
       "普通": "今天适合做 1 个成长任务、1 个生活任务、1 个轻娱乐任务，保持节奏即可。",
@@ -58,8 +87,102 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     const state = {
       mode: localStorage.getItem("lifeRpgMode") || "普通",
-      history: fallbackHistory
+      history: fallbackHistory,
+      completedTasks: JSON.parse(localStorage.getItem("lifeRpgCompletedTasks") || "[]"),
+      today: new Date().toISOString().slice(0, 10)
     };
+
+    // 清理过期的完成任务（非今日）
+    if (state.completedTasks.length > 0) {
+      const savedDate = localStorage.getItem("lifeRpgCompletedDate");
+      if (savedDate !== state.today) {
+        state.completedTasks = [];
+        localStorage.setItem("lifeRpgCompletedTasks", "[]");
+        localStorage.setItem("lifeRpgCompletedDate", state.today);
+      }
+    } else {
+      localStorage.setItem("lifeRpgCompletedDate", state.today);
+    }
+
+    function handleTaskComplete(event) {
+      const taskTitle = event.target.dataset.task;
+      const task = tasks.find(t => t.title === taskTitle);
+      if (!task) return;
+
+      if (event.target.checked) {
+        // 标记完成
+        if (!state.completedTasks.includes(taskTitle)) {
+          state.completedTasks.push(taskTitle);
+          // XP 累加
+          addXp(task.attr, task.xp);
+          showToast(`✓ 完成「${taskTitle}」 +${task.xp} XP`);
+        }
+      } else {
+        // 取消完成
+        state.completedTasks = state.completedTasks.filter(t => t !== taskTitle);
+        // XP 扣除
+        addXp(task.attr, -task.xp);
+        showToast(`↩ 取消「${taskTitle}」 -${task.xp} XP`);
+      }
+
+      localStorage.setItem("lifeRpgCompletedTasks", JSON.stringify(state.completedTasks));
+      localStorage.setItem("lifeRpgCompletedDate", state.today);
+      
+      // 重新渲染任务卡片和属性面板
+      renderTasks();
+      buildStats();
+    }
+
+    function addXp(attrName, xp) {
+      const attr = profile.attributes.find(a => a.name === attrName);
+      if (!attr) return;
+
+      attr.xp += xp;
+      
+      // 检查升级
+      while (attr.xp >= attr.next) {
+        attr.xp -= attr.next;
+        attr.level += 1;
+        attr.next = Math.round(attr.next * 1.5); // 下一级所需 XP 增加 50%
+        showToast(`🎉 ${attr.name} 升级到 Lv.${attr.level}！`);
+      }
+      
+      // 确保 XP 不为负
+      if (attr.xp < 0) attr.xp = 0;
+    }
+
+    function showToast(message) {
+      let toast = document.getElementById('lifeRpgToast');
+      if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'lifeRpgToast';
+        toast.style.cssText = `
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #41d38b, #1f9f83);
+          color: #07100d;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: 800;
+          z-index: 9999;
+          transition: opacity 0.3s ease, transform 0.3s ease;
+          opacity: 0;
+          pointer-events: none;
+        `;
+        document.body.appendChild(toast);
+      }
+      
+      toast.textContent = message;
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateX(-50%) translateY(0)';
+      
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+      }, 2500);
+    }
 
     function init() {
       document.getElementById("todayText").textContent = new Date().toLocaleDateString("zh-CN", {
@@ -112,7 +235,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           </div>`;
       }).join("");
       document.getElementById("bossText").textContent = profile.boss;
-      document.getElementById("achievementText").textContent = profile.achievements.join("；") + "。";
+      renderAchievements();
     }
 
     function bindInputs() {
@@ -172,6 +295,94 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       return "普通";
     }
 
+    function checkAchievements() {
+      const unlocked = JSON.parse(localStorage.getItem("lifeRpgAchievements") || "[]");
+      let newUnlock = false;
+      
+      achievements.forEach(ach => {
+        if (!unlocked.includes(ach.id) && ach.condition(state)) {
+          unlocked.push(ach.id);
+          newUnlock = true;
+          showToast(`🏆 解锁成就「${ach.name}」：${ach.desc}`);
+        }
+      });
+      
+      if (newUnlock) {
+        localStorage.setItem("lifeRpgAchievements", JSON.stringify(unlocked));
+        renderAchievements();
+      }
+    }
+
+    function renderAchievements() {
+      const unlocked = JSON.parse(localStorage.getItem("lifeRpgAchievements") || "[]");
+      const container = document.getElementById("achievementText");
+      if (!container) return;
+      
+      const html = achievements.map(ach => {
+        const isUnlocked = unlocked.includes(ach.id);
+        return `<span class="achievement-badge ${isUnlocked ? 'unlocked' : 'locked'}">${ach.icon} ${ach.name}</span>`;
+      }).join(" ");
+      
+      container.innerHTML = html;
+    }
+
+    function renderBoss() {
+      const boss = bosses[0]; // 当前 Boss
+      const hpPct = Math.round(boss.currentHp / boss.maxHp * 100);
+      const roundPct = Math.round(boss.completedRounds / boss.rounds * 100);
+      
+      document.getElementById("bossText").innerHTML = `
+        <div style="margin-bottom: 8px;">
+          <strong>${boss.name}</strong> 
+          <span style="color: var(--muted); font-size: 12px;">回合 ${boss.completedRounds}/${boss.rounds}</span>
+        </div>
+        <div style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">${boss.desc}</div>
+        <div style="display: grid; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px;">
+            <span>HP</span>
+            <span>${boss.currentHp}/${boss.maxHp}</span>
+          </div>
+          <div class="bar" style="height: 16px;">
+            <span style="width: ${hpPct}%; background: linear-gradient(90deg, var(--red), #ff8a65);"></span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
+            <span>回合进度</span>
+            <span>${roundPct}%</span>
+          </div>
+          <div class="bar" style="height: 10px; background: #0e1115;">
+            <span style="width: ${roundPct}%; background: linear-gradient(90deg, var(--cyan), #80deea);"></span>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSkillTree() {
+      const container = document.getElementById("skillTree");
+      if (!container) return;
+      
+      const html = skills.map(skill => {
+        const attr = profile.attributes.find(a => a.name === skill.attr);
+        const canUnlock = attr && attr.level >= skill.reqLevel;
+        const isUnlocked = skill.unlocked || canUnlock;
+        
+        if (canUnlock && !skill.unlocked) {
+          skill.unlocked = true;
+          showToast(`🔓 解锁技能「${skill.name}」：${skill.effect}`);
+        }
+        
+        return `
+          <div class="skill-node ${isUnlocked ? 'unlocked' : 'locked'}">
+            <div class="skill-icon">${isUnlocked ? '🔓' : '🔒'}</div>
+            <div class="skill-name">${skill.name}</div>
+            <div class="skill-attr">${skill.attr} Lv.${skill.reqLevel}</div>
+            <div class="skill-effect">${skill.effect}</div>
+          </div>
+        `;
+      }).join("");
+      
+      container.innerHTML = html;
+    }
+
     function updateAll() {
       document.querySelectorAll(".mode-btn").forEach(button => {
         button.classList.toggle("active", button.dataset.mode === state.mode);
@@ -181,6 +392,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       updateRadar();
       renderTasks();
       renderHistory();
+      checkAchievements();
+      renderAchievements();
+      renderBoss();
+      renderSkillTree();
     }
 
     function updateRadar() {
@@ -248,9 +463,17 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const selected = pickTaskSet(pool);
       const totalXp = selected.reduce((sum, task) => sum + task.xp, 0);
       document.getElementById("xpHint").textContent = `今日推荐 XP：${totalXp}`;
-      document.getElementById("taskCards").innerHTML = selected.map(task => `
-        <article class="task-card">
-          <div class="task-kind">${task.type}</div>
+      document.getElementById("taskCards").innerHTML = selected.map((task, index) => {
+        const isCompleted = state.completedTasks.includes(task.title);
+        return `
+        <article class="task-card ${isCompleted ? 'completed' : ''}" data-task="${task.title}">
+          <div class="task-header">
+            <div class="task-kind">${task.type}</div>
+            <label class="task-check">
+              <input type="checkbox" ${isCompleted ? 'checked' : ''} data-task="${task.title}">
+              <span>${isCompleted ? '✓ 已完成' : '标记完成'}</span>
+            </label>
+          </div>
           <h3>${task.title}</h3>
           <p>${task.note}</p>
           <div class="task-meta">
@@ -259,7 +482,12 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
             <span class="pill">+${task.xp} XP</span>
           </div>
         </article>
-      `).join("");
+      `}).join("");
+      
+      // 绑定 checkbox 事件
+      document.querySelectorAll('.task-check input').forEach(checkbox => {
+        checkbox.addEventListener('change', handleTaskComplete);
+      });
     }
 
     function pickTaskSet(pool) {

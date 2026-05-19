@@ -331,6 +331,45 @@
       gap: 12px;
     }
 
+    .task-card.completed {
+      opacity: 0.6;
+      border-color: var(--green);
+      background: rgba(65, 211, 139, .08);
+    }
+
+    .task-card.completed h3 {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .task-check {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .task-check input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--green);
+      cursor: pointer;
+    }
+
+    .task-check span {
+      user-select: none;
+    }
+
     .task-card {
       display: grid;
       gap: 12px;
@@ -472,6 +511,76 @@
       inset: 0;
       opacity: 0;
       cursor: pointer;
+    }
+
+    .achievement-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      margin: 2px;
+      transition: all 0.2s ease;
+    }
+
+    .achievement-badge.unlocked {
+      background: linear-gradient(135deg, rgba(65, 211, 139, .2), rgba(72, 201, 232, .15));
+      border: 1px solid var(--green);
+      color: var(--green);
+    }
+
+    .achievement-badge.locked {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      opacity: 0.6;
+    }
+
+    .skill-tree {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .skill-node {
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+
+    .skill-node.unlocked {
+      border-color: var(--green);
+      background: rgba(65, 211, 139, .08);
+    }
+
+    .skill-node.locked {
+      opacity: 0.5;
+    }
+
+    .skill-icon {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .skill-name {
+      font-weight: 800;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .skill-attr {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .skill-effect {
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.4;
     }
 
     .boss,
