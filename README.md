@@ -27,7 +27,7 @@ LifeRPG/
 └── README.md
 ```
 
-## 怎么打开
+## 访问方式
 
 ### 本地开发
 ```bash
@@ -36,10 +36,14 @@ python3 -m http.server 8080
 # 浏览器打开 http://localhost:8080
 ```
 
-### 坚果云访问
-坚果云同步后，通过 WebDAV 访问：
+### 坚果云访问（部署后）
+1. 安装坚果云客户端，登录账号
+2. 同步 `LifeRPG_DEMO` 文件夹到本地
+3. 双击打开 `index.html`
+
+或者通过 WebDAV 直接访问（需输入账号密码）：
 ```
-https://dav.jianguoyun.com/dav/life-rpg/index.html
+https://dav.jianguoyun.com/dav/agent_lyra/LifeRPG_DEMO/index.html
 ```
 
 ## 每日聊天格式
@@ -118,14 +122,24 @@ $env:NUTSTORE_WEBDAV_USER = "你的账号"
 $env:NUTSTORE_WEBDAV_PASS = "你的应用密码"
 ```
 
+## 已实现功能
+
+- [x] 代码重构（单文件 → 模块化）
+- [x] 任务完成系统 + XP 自动累加 + 属性升级
+- [x] 成就解锁系统（8个成就）
+- [x] Boss 血条 + 回合进度
+- [x] 技能树系统（6个技能）
+- [x] 周报表（模式分布、属性成长、任务完成率）
+- [x] 状态热力图（30天日历）
+- [x] 与 AI 集成（聊天录入状态）
+
 ## 后续可升级
 
-- [ ] 任务完成系统 + XP 自动累加
-- [ ] 成就解锁系统
-- [ ] Boss 血条 + 回合进度
-- [ ] 技能树系统
-- [ ] 周报表生成
-- [ ] 与 AI 直接集成（聊天录入状态）
+- [ ] 更多任务类型和自定义任务
+- [ ] 成就动画和音效
+- [ ] 数据导出为 CSV/PDF
+- [ ] 多设备实时同步（WebSocket）
+- [ ] 语音录入状态
 
 ---
 
