@@ -1181,7 +1181,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const ctx = canvas.getContext("2d");
       const w = canvas.width;
       const h = canvas.height;
-      const pad = { left: 40, right: 20, top: 20, bottom: 30 };
+      const pad = { left: 40, right: 20, top: 30, bottom: 20 };
       const plotW = w - pad.left - pad.right;
       const plotH = h - pad.top - pad.bottom;
       
@@ -1195,12 +1195,14 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         return;
       }
       
+      const isSparse = monthRecords.length < 5;
+      
       // 稀疏数据提示
-      if (monthRecords.length < 5) {
+      if (isSparse) {
         ctx.fillStyle = "rgba(243, 185, 78, 0.8)";
         ctx.font = "11px Microsoft YaHei";
         ctx.textAlign = "right";
-        ctx.fillText(`⚠️ 仅 ${monthRecords.length} 天数据，趋势仅供参考`, w - pad.right, 15);
+        ctx.fillText(`⚠️ 仅 ${monthRecords.length} 天数据，趋势仅供参考`, w - pad.right, 20);
       }
       
       const metrics = [
@@ -1227,7 +1229,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         ctx.fillText(i + "", pad.left - 5, y + 3);
       }
       
-      // 绘制折线 - 只在有数据的日子显示，不强制连接所有日期
+      // 绘制折线
       metrics.forEach(metric => {
         const validRecords = monthRecords.filter(r => r[metric.key] !== undefined && r[metric.key] !== null);
         if (validRecords.length < 2) return;
@@ -1235,7 +1237,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         const points = validRecords.map((r, i) => {
           const x = pad.left + (i / (validRecords.length - 1)) * plotW;
           const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
-          return { x, y, date: r.date };
+          return { x, y, date: r.date, value: r[metric.key] };
         });
         
         // 线条
@@ -1252,29 +1254,58 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         ctx.fillStyle = metric.color;
         points.forEach(p => {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, isSparse ? 5 : 3, 0, Math.PI * 2);
           ctx.fill();
         });
+        
+        // 稀疏数据：在点上方显示数值
+        if (isSparse) {
+          points.forEach(p => {
+            ctx.fillStyle = metric.color;
+            ctx.font = "bold 11px Microsoft YaHei";
+            ctx.textAlign = "center";
+            ctx.fillText(p.value, p.x, p.y - 10);
+          });
+        }
       });
       
-      // 日期标签 - 只在有数据的日子显示
-      ctx.fillStyle = "#9aa8b6";
-      ctx.font = "10px Microsoft YaHei";
-      ctx.textAlign = "center";
-      monthRecords.forEach((r, i) => {
-        const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
-        const date = r.date.slice(5); // MM-DD
-        ctx.fillText(date, x, h - 10);
-      });
-      
-      // 图例
-      let legendX = w - pad.right - 200;
-      metrics.forEach((metric, i) => {
-        ctx.fillStyle = metric.color;
-        ctx.fillRect(legendX + i * 40, 5, 10, 3);
+      // 日期标签
+      if (isSparse) {
+        // 稀疏数据：在点下方显示日期，避免重叠
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "12px Microsoft YaHei";
+        ctx.textAlign = "center";
+        monthRecords.forEach((r, i) => {
+          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+          const date = r.date.slice(5);
+          // 交替上下显示，避免重叠
+          const yOffset = (i % 2 === 0) ? h - 8 : h - 22;
+          ctx.fillText(date, x, yOffset);
+        });
+      } else {
+        // 正常数据：每5天显示一个
         ctx.fillStyle = "#9aa8b6";
         ctx.font = "10px Microsoft YaHei";
-        ctx.fillText(metric.label, legendX + i * 40 + 14, 10);
+        ctx.textAlign = "center";
+        monthRecords.forEach((r, i) => {
+          if (i % 5 === 0 || i === monthRecords.length - 1) {
+            const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+            const date = r.date.slice(5);
+            ctx.fillText(date, x, h - 10);
+          }
+        });
+      }
+      
+      // 图例 - 稀疏数据时移到左下角，避免遮挡
+      const legendX = isSparse ? pad.left : w - pad.right - 200;
+      const legendY = isSparse ? h - 35 : 20;
+      metrics.forEach((metric, i) => {
+        const x = legendX + i * 45;
+        ctx.fillStyle = metric.color;
+        ctx.fillRect(x, legendY, 10, 3);
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "10px Microsoft YaHei";
+        ctx.fillText(metric.label, x + 14, legendY + 5);
       });
     }
 
