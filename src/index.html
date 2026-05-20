@@ -127,6 +127,21 @@
           </div>
         </section>
 
+        <section class="panel boss-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <h2>👑 本周 Boss 挑战</h2>
+              <span>七天一轮，完成子任务击败 Boss</span>
+            </div>
+            <button class="ghost-btn" id="refreshBossBtn" type="button">🔄 刷新 Boss</button>
+          </div>
+          <div class="panel-body">
+            <div class="boss-grid" id="weeklyBosses">
+              <!-- 两个 Boss 卡片由 JS 渲染 -->
+            </div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel-header">
             <div class="panel-title">
@@ -297,17 +312,6 @@
           </div>
           <div class="panel-body">
             <div class="heatmap" id="heatmap"></div>
-          </div>
-        </section>
-
-        <section class="boss-grid">
-          <div class="boss">
-            <h3>本周 Boss</h3>
-            <p id="bossText">拖延 Boss：选择一个堆积任务，拆成 3 个 20 分钟小回合。</p>
-          </div>
-          <div class="achievement">
-            <h3>近期成就</h3>
-            <p id="achievementText">连续三天完成状态记录；完成一次 30 分钟运动；整理一次桌面。</p>
           </div>
         </section>
 

@@ -826,6 +826,114 @@
       font-size: 13px;
     }
 
+    /* 周 Boss 新样式 */
+    .boss-panel .panel-body {
+      padding: 0;
+    }
+    .boss-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .boss-card {
+      background: var(--panel-2);
+      border-radius: 12px;
+      padding: 16px;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+    .boss-card.active {
+      border-color: var(--red);
+      box-shadow: 0 0 20px rgba(240, 109, 98, 0.15);
+    }
+    .boss-card.defeated {
+      opacity: 0.6;
+      border-color: var(--green);
+    }
+    .boss-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .boss-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .boss-stage {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .boss-desc {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .boss-subtasks {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .subtask-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--panel);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .subtask-item:hover {
+      background: var(--line);
+    }
+    .subtask-item.completed {
+      opacity: 0.6;
+    }
+    .subtask-item.completed .subtask-title {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+    .subtask-check {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--line);
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      color: var(--green);
+      flex-shrink: 0;
+    }
+    .subtask-item.completed .subtask-check {
+      border-color: var(--green);
+      background: var(--green);
+      color: white;
+    }
+    .subtask-title {
+      font-size: 13px;
+      color: var(--text);
+      flex: 1;
+    }
+    .boss-reward {
+      font-size: 12px;
+      color: var(--green);
+      text-align: center;
+      padding: 8px;
+      background: rgba(65, 211, 139, 0.1);
+      border-radius: 6px;
+    }
+    .boss-defeated-banner {
+      text-align: center;
+      padding: 20px;
+      color: var(--green);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
     textarea {
       width: 100%;
       min-height: 86px;

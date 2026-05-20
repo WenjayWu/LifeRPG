@@ -644,99 +644,185 @@
       container.innerHTML = html;
     }
 
-    function renderBoss() {
-      const boss = bosses[0]; // 当前 Boss
-      const hpPct = Math.round(boss.currentHp / boss.maxHp * 100);
-      const roundPct = Math.round(boss.completedRounds / boss.rounds * 100);
-      const isDefeated = boss.completedRounds >= boss.rounds;
+    // 周 Boss 数据
+    const weeklyBosses = [
+      {
+        id: "procrastination",
+        name: "拖延 Boss",
+        desc: "选择一个堆积任务，故意做一个'够烂'的版本。",
+        subTasks: [
+          { title: "列出所有堆积任务", rewards: { "秩序": 10, "智识": 5, "体能": 5, "创造": 5, "工程": 5, "社交": 5 } },
+          { title: "选择一个任务，设定20分钟倒计时", rewards: { "秩序": 15, "专注": 10, "体能": 5, "智识": 5, "创造": 5, "工程": 5, "社交": 5 } },
+          { title: "完成一个'够烂'的版本，不许修改", rewards: { "秩序": 20, "创造": 15, "专注": 10, "体能": 5, "智识": 5, "工程": 5, "社交": 5 } }
+        ],
+        totalRewards: { "秩序": 50, "专注": 20, "创造": 25, "智识": 20, "体能": 20, "工程": 20, "社交": 20 }
+      },
+      {
+        id: "distraction",
+        name: "分心 Boss",
+        desc: "连续 45 分钟只做一件事，手机放另一个房间。",
+        subTasks: [
+          { title: "清理桌面，只留当前任务相关物品", rewards: { "秩序": 10, "专注": 10, "体能": 5, "智识": 5, "创造": 5, "工程": 5, "社交": 5 } },
+          { title: "手机静音并放到另一个房间", rewards: { "专注": 15, "秩序": 10, "体能": 5, "智识": 5, "创造": 5, "工程": 5, "社交": 5 } },
+          { title: "连续专注 45 分钟", rewards: { "专注": 30, "秩序": 10, "体能": 10, "智识": 5, "创造": 5, "工程": 5, "社交": 5 } }
+        ],
+        totalRewards: { "专注": 60, "秩序": 35, "体能": 25, "智识": 20, "创造": 20, "工程": 20, "社交": 20 }
+      },
+      {
+        id: "perfectionism",
+        name: "完美主义 Boss",
+        desc: "故意做一个'够烂'的版本，30 分钟内不许修改。",
+        subTasks: [
+          { title: "设定一个低标准目标", rewards: { "创造": 10, "智识": 5, "体能": 5, "秩序": 5, "工程": 5, "专注": 5, "社交": 5 } },
+          { title: "用 15 分钟做一个粗糙版本", rewards: { "创造": 15, "工程": 10, "智识": 5, "体能": 5, "秩序": 5, "专注": 5, "社交": 5 } },
+          { title: "再花 15 分钟完善但不追求完美", rewards: { "创造": 20, "工程": 15, "智识": 10, "体能": 5, "秩序": 5, "专注": 5, "社交": 5 } },
+          { title: "发布/提交，不再修改", rewards: { "创造": 25, "秩序": 15, "社交": 10, "智识": 10, "体能": 5, "工程": 5, "专注": 5 } }
+        ],
+        totalRewards: { "创造": 75, "秩序": 40, "工程": 40, "智识": 35, "社交": 30, "体能": 25, "专注": 25 }
+      }
+    ];
+
+    // 当前周 Boss 状态
+    let currentWeeklyBosses = [];
+
+    function initWeeklyBosses() {
+      const saved = storage.getJSON("lifeRpgWeeklyBosses");
+      const savedWeek = storage.get("lifeRpgWeeklyBossWeek");
+      const currentWeek = getWeekNumber(new Date());
       
-      document.getElementById("bossText").innerHTML = `
-        <div style="margin-bottom: 8px;">
-          <strong>${boss.name}</strong> 
-          <span style="color: var(--muted); font-size: 12px;">回合 ${boss.completedRounds}/${boss.rounds}</span>
-        </div>
-        <div style="font-size: 13px; color: var(--muted); margin-bottom: 10px;">${boss.desc}</div>
-        <div style="display: grid; gap: 6px;">
-          <div style="display: flex; justify-content: space-between; font-size: 12px;">
-            <span>HP</span>
-            <span>${boss.currentHp}/${boss.maxHp}</span>
-          </div>
-          <div class="bar" style="height: 16px;">
-            <span style="width: ${hpPct}%; background: linear-gradient(90deg, var(--red), #ff8a65);"></span>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 4px;">
-            <span>回合进度</span>
-            <span>${roundPct}%</span>
-          </div>
-          <div class="bar" style="height: 10px; background: #0e1115;">
-            <span style="width: ${roundPct}%; background: linear-gradient(90deg, var(--cyan), #80deea);"></span>
-          </div>
-        </div>
-        ${isDefeated 
-          ? `<div style="margin-top: 12px; padding: 10px; background: rgba(65,211,139,0.1); border-radius: 8px; text-align: center; color: var(--green);">🎉 Boss 已击败！获得 ${boss.reward.xp} XP</div>`
-          : `<button class="primary-btn" style="margin-top: 12px; width: 100%;" onclick="advanceBossRound()">⚔️ 推进一回合（20分钟）</button>`
-        }
-      `;
+      if (saved && savedWeek === currentWeek) {
+        currentWeeklyBosses = saved;
+      } else {
+        // 新的一周，随机抽取两个 Boss
+        currentWeeklyBosses = drawWeeklyBosses();
+        storage.setJSON("lifeRpgWeeklyBosses", currentWeeklyBosses);
+        storage.set("lifeRpgWeeklyBossWeek", currentWeek);
+      }
+      
+      renderWeeklyBosses();
+      
+      // 绑定刷新按钮
+      const refreshBtn = document.getElementById("refreshBossBtn");
+      if (refreshBtn) {
+        refreshBtn.addEventListener("click", () => {
+          if (confirm("确定要刷新本周 Boss 吗？当前进度将丢失。")) {
+            currentWeeklyBosses = drawWeeklyBosses();
+            storage.setJSON("lifeRpgWeeklyBosses", currentWeeklyBosses);
+            renderWeeklyBosses();
+            showToast("🔄 本周 Boss 已刷新");
+          }
+        });
+      }
     }
 
-    function advanceBossRound() {
-      const boss = bosses[0];
-      if (boss.completedRounds >= boss.rounds) return;
+    function drawWeeklyBosses() {
+      const shuffled = [...weeklyBosses].sort(() => Math.random() - 0.5);
+      return shuffled.slice(0, 2).map(boss => ({
+        ...boss,
+        completedSubTasks: [],
+        defeated: false
+      }));
+    }
+
+    function getWeekNumber(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    }
+
+    function renderWeeklyBosses() {
+      const container = document.getElementById("weeklyBosses");
+      if (!container) return;
       
-      boss.completedRounds++;
-      boss.currentHp = Math.max(0, boss.currentHp - Math.ceil(boss.maxHp / boss.rounds));
+      container.innerHTML = currentWeeklyBosses.map((boss, index) => {
+        if (boss.defeated) {
+          return `
+            <div class="boss-card defeated">
+              <div class="boss-defeated-banner">
+                ✅ ${boss.name} 已被击败！
+                <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">
+                  全属性 XP 已发放
+                </div>
+              </div>
+            </div>
+          `;
+        }
+        
+        const completedCount = boss.completedSubTasks.length;
+        const totalCount = boss.subTasks.length;
+        const currentStage = completedCount < totalCount ? boss.subTasks[completedCount] : null;
+        
+        return `
+          <div class="boss-card ${completedCount > 0 ? 'active' : ''}">
+            <div class="boss-header">
+              <div class="boss-name">${boss.name}</div>
+              <div class="boss-stage">${completedCount}/${totalCount} 阶段</div>
+            </div>
+            <div class="boss-desc">${boss.desc}</div>
+            <div class="boss-subtasks">
+              ${boss.subTasks.map((subtask, i) => `
+                <div class="subtask-item ${i < completedCount ? 'completed' : ''}" 
+                     onclick="completeSubTask(${index}, ${i})"
+                     style="${i === completedCount ? '' : 'pointer-events: none;'}">
+                  <div class="subtask-check">${i < completedCount ? '✓' : ''}</div>
+                  <div class="subtask-title">${subtask.title}</div>
+                </div>
+              `).join('')}
+            </div>
+            ${currentStage ? `
+              <div class="boss-reward">
+                完成奖励: ${formatRewards(currentStage.rewards)}
+              </div>
+            ` : `
+              <div class="boss-reward" style="background: rgba(65, 211, 139, 0.2);">
+                🎉 全部完成！击败奖励: ${formatRewards(boss.totalRewards)}
+              </div>
+            `}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function formatRewards(rewards) {
+      return Object.entries(rewards)
+        .map(([attr, xp]) => `${attr}+${xp}`)
+        .join(" ");
+    }
+
+    function completeSubTask(bossIndex, subtaskIndex) {
+      const boss = currentWeeklyBosses[bossIndex];
+      if (!boss || boss.defeated || subtaskIndex !== boss.completedSubTasks.length) return;
+      
+      const subtask = boss.subTasks[subtaskIndex];
+      if (!subtask) return;
+      
+      // 标记完成
+      boss.completedSubTasks.push(subtaskIndex);
+      
+      // 发放子任务奖励（全属性，不同量）
+      Object.entries(subtask.rewards).forEach(([attr, xp]) => {
+        addXp(attr, xp);
+      });
+      
+      // 检查是否全部完成
+      if (boss.completedSubTasks.length >= boss.subTasks.length) {
+        boss.defeated = true;
+        
+        // 发放总奖励
+        Object.entries(boss.totalRewards).forEach(([attr, xp]) => {
+          addXp(attr, xp);
+        });
+        
+        showToast(`🎉 击败 ${boss.name}！全属性 XP 已发放`);
+      } else {
+        showToast(`⚔️ ${boss.name} 阶段 ${boss.completedSubTasks.length}/${boss.subTasks.length} 完成！`);
+      }
       
       // 保存状态
-      storage.setJSON("lifeRpgBossState", { completedRounds: boss.completedRounds, currentHp: boss.currentHp });
-      
-      renderBoss();
-      
-      if (boss.completedRounds >= boss.rounds) {
-        // Boss 击败，发放奖励
-        addXp(boss.reward.attr, boss.reward.xp);
-        showToast(`🎉 击败 ${boss.name}！${boss.reward.attr} +${boss.reward.xp} XP`);
-        
-        // 切换到下一个 Boss
-        setTimeout(() => {
-          rotateBoss();
-        }, 1500);
-      } else {
-        showToast(`⚔️ 回合 ${boss.completedRounds}/${boss.rounds} 完成！Boss HP ${boss.currentHp}/${boss.maxHp}`);
-      }
-    }
-
-    function rotateBoss() {
-      // 循环切换到下一个 Boss
-      const current = bosses.shift();
-      bosses.push(current);
-      
-      // 重置新 Boss 状态
-      bosses[0].completedRounds = 0;
-      bosses[0].currentHp = bosses[0].maxHp;
-      
-      storage.setJSON("lifeRpgBossIndex", 0);
-      storage.remove("lifeRpgBossState");
-      
-      renderBoss();
-      showToast(`👹 新 Boss 出现：${bosses[0].name}！`);
-    }
-
-    function resetBoss() {
-      // 重置当前 Boss
-      const boss = bosses[0];
-      boss.completedRounds = 0;
-      boss.currentHp = boss.maxHp;
-      storage.remove("lifeRpgBossState");
-      renderBoss();
-      showToast("🔄 Boss 已重置，准备新的挑战！");
-    }
-
-    function loadBossState() {
-      const saved = storage.getJSON("lifeRpgBossState");
-      if (saved) {
-        bosses[0].completedRounds = saved.completedRounds || 0;
-        bosses[0].currentHp = saved.currentHp || bosses[0].maxHp;
-      }
+      storage.setJSON("lifeRpgWeeklyBosses", currentWeeklyBosses);
+      renderWeeklyBosses();
     }
 
     function renderSkillTree() {
@@ -776,9 +862,8 @@
       renderHistory();
       checkAchievements();
       renderAchievements();
-      loadBossState();
       loadProfile();
-      renderBoss();
+      initWeeklyBosses();
       renderAttributes();
       renderSkillTree();
       // Task pool is initialized separately
