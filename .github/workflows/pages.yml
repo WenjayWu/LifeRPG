@@ -1,38 +1,43 @@
-name: Deploy LifeRPG to GitHub Pages
+name: Backup LifeRPG Data
 
 on:
-  push:
-    branches:
-      - main
+  schedule:
+    # 每天北京时间凌晨 3:00 运行（UTC 19:00）
+    - cron: '0 19 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  backup:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v3
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          path: src
+          python-version: '3.12'
 
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Export from Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          cd sync
+          python export-from-supabase.py          
+
+      - name: Upload backup artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: liferpg-backup-${{ github.run_id }}
+          path: |
+            records/
+            data/history.json
+            data/profile.json            
+          retention-days: 90
