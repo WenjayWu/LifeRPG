@@ -612,6 +612,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const boss = bosses[0]; // 当前 Boss
       const hpPct = Math.round(boss.currentHp / boss.maxHp * 100);
       const roundPct = Math.round(boss.completedRounds / boss.rounds * 100);
+      const isDefeated = boss.completedRounds >= boss.rounds;
       
       document.getElementById("bossText").innerHTML = `
         <div style="margin-bottom: 8px;">
@@ -635,7 +636,56 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
             <span style="width: ${roundPct}%; background: linear-gradient(90deg, var(--cyan), #80deea);"></span>
           </div>
         </div>
+        ${isDefeated 
+          ? `<div style="margin-top: 12px; padding: 10px; background: rgba(65,211,139,0.1); border-radius: 8px; text-align: center; color: var(--green);">🎉 Boss 已击败！获得 ${boss.reward.xp} XP</div>`
+          : `<button class="primary-btn" style="margin-top: 12px; width: 100%;" onclick="advanceBossRound()">⚔️ 推进一回合（20分钟）</button>`
+        }
       `;
+    }
+
+    function advanceBossRound() {
+      const boss = bosses[0];
+      if (boss.completedRounds >= boss.rounds) return;
+      
+      boss.completedRounds++;
+      boss.currentHp = Math.max(0, boss.currentHp - Math.ceil(boss.maxHp / boss.rounds));
+      
+      // 保存状态
+      storage.setJSON("lifeRpgBossState", { completedRounds: boss.completedRounds, currentHp: boss.currentHp });
+      
+      renderBoss();
+      
+      if (boss.completedRounds >= boss.rounds) {
+        // Boss 击败，发放奖励
+        addXp(boss.reward.attr, boss.reward.xp);
+        showToast(`🎉 击败 ${boss.name}！${boss.reward.attr} +${boss.reward.xp} XP`);
+        
+        // 重置 Boss（可选：切换到下一个 Boss）
+        setTimeout(() => {
+          if (confirm("Boss 已击败！要挑战下一个 Boss 吗？")) {
+            resetBoss();
+          }
+        }, 500);
+      } else {
+        showToast(`⚔️ 回合 ${boss.completedRounds}/${boss.rounds} 完成！Boss HP ${boss.currentHp}/${boss.maxHp}`);
+      }
+    }
+
+    function resetBoss() {
+      const boss = bosses[0];
+      boss.completedRounds = 0;
+      boss.currentHp = boss.maxHp;
+      storage.remove("lifeRpgBossState");
+      renderBoss();
+      showToast("🔄 Boss 已重置，准备新的挑战！");
+    }
+
+    function loadBossState() {
+      const saved = storage.getJSON("lifeRpgBossState");
+      if (saved) {
+        bosses[0].completedRounds = saved.completedRounds || 0;
+        bosses[0].currentHp = saved.currentHp || bosses[0].maxHp;
+      }
     }
 
     function renderSkillTree() {
@@ -675,6 +725,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       renderHistory();
       checkAchievements();
       renderAchievements();
+      loadBossState();
       renderBoss();
       renderSkillTree();
       // Task pool is initialized separately
@@ -965,7 +1016,29 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const pool = creativePool.length ? creativePool : tasks.filter(task => task.states.includes(state.mode));
       const drawPool = pool.length ? pool : tasks;
       const task = drawPool[Math.floor(Math.random() * drawPool.length)];
-      document.getElementById("drawResult").innerHTML = `<strong>${task.title}</strong><br>${task.note}<br><span class="small-muted">${task.time} · ${task.attr} · +${task.xp} XP</span>`;
+      
+      document.getElementById("drawResult").innerHTML = `
+        <div style="margin-bottom: 12px;">
+          <strong>${task.title}</strong>
+          <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">${task.note}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
+            ${task.time} · ${task.attr} · +${task.xp} XP
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="primary-btn" style="flex: 1;" onclick="addDrawnTask('${task.key || task.title}')">➕ 加入清单</button>
+          <button class="ghost-btn" style="flex: 1;" onclick="drawBoredom()">🔄 换一个</button>
+        </div>
+      `;
+    }
+
+    function addDrawnTask(taskKey) {
+      const task = findTaskByKeyOrTitle(taskKey);
+      if (!task) {
+        showToast("任务未找到");
+        return;
+      }
+      addToList(task);
     }
 
     async function copyForCodex() {
