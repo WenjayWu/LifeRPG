@@ -888,6 +888,13 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       renderRecommendedTasks();
       renderTaskList();
       updateRefreshHint();
+      
+      // 更新当天总任务数
+      const todayRecord = state.history.find(r => r.date === state.today);
+      if (todayRecord) {
+        todayRecord.totalTasks = (todayRecord.totalTasks || todayRecord.completedTasks || 0) + 1;
+      }
+      
       if (canWriteRemote("任务")) {
         try {
           await persistStatus();
@@ -917,7 +924,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     async function toggleTaskComplete(key) {
       const task = taskPool.selected.find(s => taskKey(s) === key || s.title === key);
-      if (!task) return;
+      if (!task || task.failed) return;
       const keyForState = taskKey(task);
       task.completed = !task.completed;
       if (task.completed) {
@@ -944,6 +951,32 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           await persistStatus();
         } catch (error) {
           setSyncStatus(`完成状态未同步：${error.message}`, "error");
+        }
+      }
+    }
+
+    async function markTaskFailed(key) {
+      const task = taskPool.selected.find(s => taskKey(s) === key || s.title === key);
+      if (!task || task.completed || task.failed) return;
+      
+      task.failed = true;
+      task.completed = false;
+      
+      const keyForState = taskKey(task);
+      state.completedTasks = state.completedTasks.filter(k => k !== keyForState);
+      storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
+      
+      renderTaskList();
+      showToast(`✗ 「${task.title}」已标记为放弃/失败`);
+      
+      if (canWriteRemote("任务状态")) {
+        try {
+          if (task.remoteId) {
+            await remoteStore.completeTask(task.remoteId, false);
+          }
+          await persistStatus();
+        } catch (error) {
+          setSyncStatus(`状态同步失败：${error.message}`, "error");
         }
       }
     }
@@ -995,10 +1028,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         return;
       }
       container.innerHTML = taskPool.selected.map(task => `
-        <div class="task-list-item ${task.completed ? 'completed' : ''}">
+        <div class="task-list-item ${task.completed ? 'completed' : ''} ${task.failed ? 'failed' : ''}">
           <label class="task-check">
-            <input type="checkbox" ${task.completed ? 'checked' : ''} data-task="${taskKey(task)}">
-            <span>${task.completed ? '✓' : ''}</span>
+            <input type="checkbox" ${task.completed ? 'checked' : ''} data-task="${taskKey(task)}" ${task.failed ? 'disabled' : ''}>
+            <span>${task.completed ? '✓' : task.failed ? '✗' : ''}</span>
           </label>
           <div class="task-info">
             <div class="task-title">${task.title}</div>
@@ -1008,7 +1041,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
               <span class="pill">+${task.xp} XP</span>
             </div>
           </div>
-          <button class="remove-btn" data-task="${taskKey(task)}" type="button">✕</button>
+          <div class="task-actions-row">
+            ${!task.completed && !task.failed ? `<button class="fail-btn" data-task="${taskKey(task)}" type="button" title="标记失败/放弃">✗</button>` : ''}
+            <button class="remove-btn" data-task="${taskKey(task)}" type="button">✕</button>
+          </div>
         </div>
       `).join("");
       container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -1016,6 +1052,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
       container.querySelectorAll('.remove-btn').forEach(btn => {
         btn.addEventListener('click', () => removeFromList(btn.dataset.task));
+      });
+      container.querySelectorAll('.fail-btn').forEach(btn => {
+        btn.addEventListener('click', () => markTaskFailed(btn.dataset.task));
       });
       updateListStats();
     }
@@ -1037,9 +1076,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const xp = document.getElementById("listXp");
       if (stats && xp) {
         const completed = taskPool.selected.filter(s => s.completed).length;
+        const failed = taskPool.selected.filter(s => s.failed).length;
         const total = taskPool.selected.length;
         const totalXp = taskPool.selected.filter(s => s.completed).reduce((sum, t) => sum + t.xp, 0);
-        stats.textContent = `${completed}/${total} 任务`;
+        stats.textContent = `${completed}完成 ${failed}放弃 ${total}总计`;
         xp.textContent = `${totalXp} XP`;
       }
     }
@@ -1602,9 +1642,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
       drawAttrGrowth(attrGrowth);
       
-      // 任务完成率
-      const totalTasks = weekRecords.reduce((sum, r) => sum + (r.completedTasks || 0), 0);
-      const avgCompletion = weekRecords.length ? (totalTasks / weekRecords.length / 3 * 100).toFixed(0) : 0;
+      // 任务完成率 - 基于实际选择任务数计算
+      const completedCount = weekRecords.reduce((sum, r) => sum + (r.completedTasks || 0), 0);
+      const totalSelected = weekRecords.reduce((sum, r) => sum + (r.totalTasks || r.completedTasks || 0), 0);
+      const avgCompletion = totalSelected > 0 ? (completedCount / totalSelected * 100).toFixed(0) : 0;
       document.getElementById("completionRate").textContent = `${avgCompletion}%`;
       
       // 本周总结
