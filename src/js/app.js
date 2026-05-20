@@ -1195,6 +1195,14 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         return;
       }
       
+      // 稀疏数据提示
+      if (monthRecords.length < 5) {
+        ctx.fillStyle = "rgba(243, 185, 78, 0.8)";
+        ctx.font = "11px Microsoft YaHei";
+        ctx.textAlign = "right";
+        ctx.fillText(`⚠️ 仅 ${monthRecords.length} 天数据，趋势仅供参考`, w - pad.right, 15);
+      }
+      
       const metrics = [
         { key: "energy", label: "精力", color: "#41d38b" },
         { key: "mood", label: "情绪", color: "#48c9e8" },
@@ -1219,14 +1227,18 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         ctx.fillText(i + "", pad.left - 5, y + 3);
       }
       
-      // 绘制折线
+      // 绘制折线 - 只在有数据的日子显示，不强制连接所有日期
       metrics.forEach(metric => {
-        const points = monthRecords.map((r, i) => {
-          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+        const validRecords = monthRecords.filter(r => r[metric.key] !== undefined && r[metric.key] !== null);
+        if (validRecords.length < 2) return;
+        
+        const points = validRecords.map((r, i) => {
+          const x = pad.left + (i / (validRecords.length - 1)) * plotW;
           const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
-          return { x, y };
+          return { x, y, date: r.date };
         });
         
+        // 线条
         ctx.strokeStyle = metric.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -1236,24 +1248,23 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         });
         ctx.stroke();
         
+        // 数据点
         ctx.fillStyle = metric.color;
         points.forEach(p => {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
           ctx.fill();
         });
       });
       
-      // 日期标签（每5天显示一个）
+      // 日期标签 - 只在有数据的日子显示
       ctx.fillStyle = "#9aa8b6";
       ctx.font = "10px Microsoft YaHei";
       ctx.textAlign = "center";
       monthRecords.forEach((r, i) => {
-        if (i % 5 === 0 || i === monthRecords.length - 1) {
-          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
-          const date = r.date.slice(5);
-          ctx.fillText(date, x, h - 10);
-        }
+        const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+        const date = r.date.slice(5); // MM-DD
+        ctx.fillText(date, x, h - 10);
       });
       
       // 图例
