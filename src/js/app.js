@@ -20,20 +20,39 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       achievements: ["连续三天完成状态记录", "完成一次 30 分钟运动", "整理一次桌面"]
     };
 
-    const tasks = [
-      { title: "晒太阳或散步 12 分钟", attr: "体能", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "烦躁", "空虚"], type: "恢复", note: "先让身体离开原地，别急着变强。" },
-      { title: "收拾桌面 10 分钟", attr: "秩序", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "无聊", "空虚"], type: "恢复", note: "只收 10 分钟，结束后允许停止。" },
-      { title: "读一页论文或一本书", attr: "智识", energy: "低", time: "10 分钟", xp: 5, states: ["普通", "低能量"], type: "成长", note: "把门槛压低，目标是恢复进入状态的能力。" },
-      { title: "跑步或快走 25 分钟", attr: "体能", energy: "中", time: "30 分钟", xp: 20, states: ["烦躁", "普通", "高能量"], type: "成长", note: "适合脑子乱、身体钝的时候。" },
-      { title: "做一个代码/AI 小功能", attr: "工程", energy: "中", time: "45 分钟", xp: 20, states: ["普通", "想创造", "高能量"], type: "成长", note: "只做一个可见的小改动，别开大坑。" },
-      { title: "画一张速写或 UI 草图", attr: "创造", energy: "中", time: "30 分钟", xp: 20, states: ["想创造", "无聊", "普通"], type: "娱乐", note: "重点是动手，不追求成品。" },
-      { title: "给一个朋友发近况", attr: "社交", energy: "低", time: "10 分钟", xp: 5, states: ["想社交", "空虚", "普通"], type: "社交", note: "一句真诚近况就够，不需要组织大型聊天。" },
-      { title: "约一顿饭或一次散步", attr: "社交", energy: "中", time: "60 分钟", xp: 20, states: ["想社交", "高能量"], type: "社交", note: "优先约低压力的人。" },
-      { title: "完成一个两小时 Boss 回合", attr: "智识", energy: "高", time: "2 小时", xp: 60, states: ["高能量"], type: "Boss", note: "选择论文、实验复盘、代码项目中的一个推进。" },
-      { title: "城市探索半天副本", attr: "创造", energy: "高", time: "半天", xp: 60, states: ["无聊", "高能量", "想创造"], type: "娱乐", note: "带着一个主题出门，比如拍 12 张有结构感的照片。" },
-      { title: "洗澡 + 换衣 + 清理 5 件物品", attr: "秩序", energy: "低", time: "30 分钟", xp: 20, states: ["低能量", "空虚"], type: "恢复", note: "低谷日的重启组合。" },
-      { title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。" }
+    // 任务数据：从 JSON 加载，失败时回退到本地 fallback
+    let tasks = [];
+    const FALLBACK_TASKS = [
+      { title: "晒太阳或散步 12 分钟", attr: "体能", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "烦躁", "空虚"], type: "恢复", note: "先让身体离开原地，别急着变强。", pool: "daily" },
+      { title: "收拾桌面 10 分钟", attr: "秩序", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "无聊", "空虚"], type: "恢复", note: "只收 10 分钟，结束后允许停止。", pool: "daily" },
+      { title: "读一页论文或一本书", attr: "智识", energy: "低", time: "10 分钟", xp: 5, states: ["普通", "低能量"], type: "成长", note: "把门槛压低，目标是恢复进入状态的能力。", pool: "daily" },
+      { title: "跑步或快走 25 分钟", attr: "体能", energy: "中", time: "30 分钟", xp: 20, states: ["烦躁", "普通", "高能量"], type: "成长", note: "适合脑子乱、身体钝的时候。", pool: "daily" },
+      { title: "做一个代码/AI 小功能", attr: "工程", energy: "中", time: "45 分钟", xp: 20, states: ["普通", "想创造", "高能量"], type: "成长", note: "只做一个可见的小改动，别开大坑。", pool: "daily" },
+      { title: "画一张速写或 UI 草图", attr: "创造", energy: "中", time: "30 分钟", xp: 20, states: ["想创造", "无聊", "普通"], type: "娱乐", note: "重点是动手，不追求成品。", pool: "creative" },
+      { title: "给一个朋友发近况", attr: "社交", energy: "低", time: "10 分钟", xp: 5, states: ["想社交", "空虚", "普通"], type: "社交", note: "一句真诚近况就够，不需要组织大型聊天。", pool: "daily" },
+      { title: "约一顿饭或一次散步", attr: "社交", energy: "中", time: "60 分钟", xp: 20, states: ["想社交", "高能量"], type: "社交", note: "优先约低压力的人。", pool: "daily" },
+      { title: "完成一个两小时 Boss 回合", attr: "智识", energy: "高", time: "2 小时", xp: 60, states: ["高能量"], type: "Boss", note: "选择论文、实验复盘、代码项目中的一个推进。", pool: "daily" },
+      { title: "城市探索半天副本", attr: "创造", energy: "高", time: "半天", xp: 60, states: ["无聊", "高能量", "想创造"], type: "娱乐", note: "带着一个主题出门，比如拍 12 张有结构感的照片。", pool: "creative" },
+      { title: "洗澡 + 换衣 + 清理 5 件物品", attr: "秩序", energy: "低", time: "30 分钟", xp: 20, states: ["低能量", "空虚"], type: "恢复", note: "低谷日的重启组合。", pool: "daily" },
+      { title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。", pool: "daily" }
     ];
+
+    async function loadTasks() {
+      try {
+        const response = await fetch('data/tasks.json');
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          tasks = data;
+          console.log(`[LifeRPG] 加载任务库: ${tasks.length} 个任务`);
+          return true;
+        }
+      } catch (error) {
+        console.warn('[LifeRPG] 加载任务库失败，使用 fallback:', error.message);
+      }
+      tasks = FALLBACK_TASKS;
+      return false;
+    }
 
     const achievements = [
       { id: "first_task", name: "初出茅庐", desc: "完成第一个任务", condition: (s) => s.completedTasks.length >= 1, icon: "🌱" },
@@ -214,6 +233,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     async function init() {
+      // 先加载任务库（在线优先，离线回退到 fallback）
+      await loadTasks();
+      
       document.getElementById("todayText").textContent = new Date().toLocaleDateString("zh-CN", {
         year: "numeric", month: "2-digit", day: "2-digit", weekday: "short"
       });
@@ -706,8 +728,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     };
 
     function initTaskPool() {
-      const matched = tasks.filter(task => task.states.includes(state.mode));
-      const fallback = tasks.filter(task => ["普通", "低能量"].some(s => task.states.includes(s)));
+      // 日常推荐从 daily 池选，与 creative 抽卡池分离
+      const dailyTasks = tasks.filter(task => task.pool === "daily");
+      const matched = dailyTasks.filter(task => task.states.includes(state.mode));
+      const fallback = dailyTasks.filter(task => ["普通", "低能量"].some(s => task.states.includes(s)));
       taskPool.available = matched.length >= 3 ? [...matched] : [...matched, ...fallback];
       taskPool.selected = [];
       taskPool.completed = [];
@@ -916,7 +940,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     function drawBoredom() {
-      const pool = tasks.filter(task => task.states.includes(state.mode));
+      // 从 creative 池抽卡，与日常推荐差异化
+      const creativePool = tasks.filter(task => task.pool === "creative");
+      const pool = creativePool.length ? creativePool : tasks.filter(task => task.states.includes(state.mode));
       const drawPool = pool.length ? pool : tasks;
       const task = drawPool[Math.floor(Math.random() * drawPool.length)];
       document.getElementById("drawResult").innerHTML = `<strong>${task.title}</strong><br>${task.note}<br><span class="small-muted">${task.time} · ${task.attr} · +${task.xp} XP</span>`;
