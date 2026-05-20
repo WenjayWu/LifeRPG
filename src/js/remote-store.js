@@ -138,7 +138,7 @@
       const payload = {
         user_id: this.requireUser(),
         task_date: date,
-        task_key: task.title,
+        task_key: task.key || task.title,
         title: task.title,
         task_type: task.type,
         attribute: task.attr,
@@ -147,6 +147,24 @@
         note: task.note,
         completed: Boolean(task.completed)
       };
+      const { data: existing, error: existingError } = await this.client
+        .from(TABLES.taskInstances)
+        .select("id,task_key")
+        .eq("task_date", date)
+        .eq("title", task.title)
+        .order("created_at", { ascending: true });
+      if (existingError) throw existingError;
+      const current = (existing || []).find(row => row.task_key === payload.task_key) || existing?.[0];
+      if (current) {
+        const { data, error } = await this.client
+          .from(TABLES.taskInstances)
+          .update(payload)
+          .eq("id", current.id)
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
+      }
       const { data, error } = await this.client
         .from(TABLES.taskInstances)
         .upsert(payload, { onConflict: "user_id,task_date,task_key" })

@@ -8,15 +8,15 @@ import sys
 import json
 import re
 import subprocess
-from datetime import datetime
+from pathlib import Path
 
-SCRIPT_DIR = "/home/admin/.openclaw/workspace_lyra/LifeRPG/sync"
-BRIDGE = f"{SCRIPT_DIR}/agent-bridge.py"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+BRIDGE = PROJECT_ROOT / "sync" / "agent-bridge.py"
 
 
 def _call(action, *args):
     """调用 agent-bridge.py"""
-    cmd = ["python3", BRIDGE, action] + list(args)
+    cmd = [sys.executable, str(BRIDGE), action] + list(args)
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
@@ -42,18 +42,46 @@ def parse_intent(text):
         m = re.search(pat, text)
         if m:
             task_name = m.group(1).strip()
-            # 需要映射任务名到 task_key
             return "complete_task", [task_name]
     
     # 复盘
     if any(kw in text for kw in ["复盘", "review", "总结"]):
         return "write_review", [text]
+
+    # 属性查询
+    if any(kw in text for kw in ["多少级", "等级", "属性"]):
+        return "profile", []
     
     # 查询
     if any(kw in text for kw in ["今天怎么样", "状态", "任务", "多少级"]):
         return "snapshot", []
     
     return "unknown", []
+
+
+def resolve_task_key(snapshot, query):
+    """从今日快照中把自然语言任务名解析为 task_key。"""
+    tasks = snapshot.get("tasks", [])
+    query = query.strip()
+    exact = [
+        task for task in tasks
+        if query == task.get("task_key") or query == task.get("title")
+    ]
+    if len(exact) == 1:
+        return exact[0]["task_key"]
+
+    fuzzy = [
+        task for task in tasks
+        if query and query in task.get("title", "")
+    ]
+    if len(fuzzy) == 1:
+        return fuzzy[0]["task_key"]
+
+    if not exact and not fuzzy:
+        raise RuntimeError(f"今日任务中没有匹配项：{query}")
+
+    names = "、".join(task.get("title", task.get("task_key", "")) for task in (exact or fuzzy))
+    raise RuntimeError(f"任务匹配不唯一：{query} -> {names}")
 
 
 def format_submit_status(result):
@@ -126,8 +154,10 @@ def main():
             print(format_submit_status(result))
         
         elif intent == "complete_task":
-            # TODO: 需要映射任务名到 task_key
-            print("⏳ 任务完成功能需要精确匹配 task_key")
+            snapshot = _call("snapshot")
+            task_key = resolve_task_key(snapshot, args[0])
+            result = _call("complete_task", snapshot["date"], task_key)
+            print(format_complete_task(result))
         
         elif intent == "write_review":
             result = _call("write_review", args[0])

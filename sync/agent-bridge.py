@@ -172,6 +172,49 @@ def _load_tasks():
 TASKS = _load_tasks()
 
 
+def _task_key(task):
+    return task.get("key") or task.get("title")
+
+
+def _task_matches(task, query):
+    query = query.strip()
+    return query and (
+        query == task.get("task_key")
+        or query == task.get("title")
+        or query == task.get("key")
+        or query in str(task.get("title", ""))
+    )
+
+
+def _resolve_task_row(date, query, user_id):
+    rows = _select("task_instances", filters={"task_date": date, "user_id": user_id}, order="created_at")
+    matches = [row for row in rows if _task_matches(row, query)]
+    if not matches:
+        template = next((task for task in TASKS if _task_matches({"task_key": _task_key(task), "title": task.get("title"), "key": _task_key(task)}, query)), None)
+        if template:
+            matches = [row for row in rows if row.get("task_key") == _task_key(template) or row.get("task_key") == template.get("title") or row.get("title") == template.get("title")]
+    if not matches:
+        raise RuntimeError(f"任务不存在: {query} on {date}")
+    if len(matches) > 1:
+        names = "、".join(row.get("title", row.get("task_key", "")) for row in matches)
+        raise RuntimeError(f"任务匹配不唯一: {query} -> {names}")
+    return matches[0]
+
+
+def _upsert_task_row(task_row):
+    existing = _select("task_instances", filters={
+        "user_id": task_row["user_id"],
+        "task_date": task_row["task_date"],
+        "title": task_row["title"],
+    }, order="created_at")
+    current = next((row for row in existing if row.get("task_key") == task_row["task_key"]), None)
+    if not current and existing:
+        current = existing[0]
+    if current:
+        return _update("task_instances", task_row, {"id": current["id"]})
+    return _upsert("task_instances", task_row, on_conflict="user_id,task_date,task_key")
+
+
 # ── 解析 ──
 
 def parse_status_input(text):
@@ -281,7 +324,7 @@ def submit_status(text, date=None):
         task_row = {
             "user_id": user_id,
             "task_date": date,
-            "task_key": task["key"],
+            "task_key": _task_key(task),
             "title": task["title"],
             "task_type": task["type"],
             "attribute": task["attr"],
@@ -290,7 +333,7 @@ def submit_status(text, date=None):
             "note": task["note"],
             "completed": False,
         }
-        _upsert("task_instances", task_row, on_conflict="user_id,task_date,task_key")
+        _upsert_task_row(task_row)
 
     # 记录 agent event
     _insert("agent_events", {
@@ -304,11 +347,8 @@ def submit_status(text, date=None):
 
 def complete_task(date, task_key):
     """标记任务完成"""
-    # 先查询任务
-    rows = _select("task_instances", filters={"task_date": date, "task_key": task_key})
-    if not rows:
-        raise RuntimeError(f"任务不存在: {task_key} on {date}")
-    task = rows[0]
+    user_id = _get_user_id()
+    task = _resolve_task_row(date, task_key, user_id)
 
     # 更新完成状态
     completed = not task.get("completed", False)
@@ -318,13 +358,12 @@ def complete_task(date, task_key):
     }, {"id": task["id"]})
 
     # 更新属性 XP
-    if completed:
-        attr = task.get("attribute")
-        xp = task.get("xp", 0)
-        if attr and xp > 0:
-            _update_profile_xp(attr, xp)
+    attr = task.get("attribute")
+    xp = int(task.get("xp") or 0)
+    if attr and xp > 0:
+        _update_profile_xp(attr, xp if completed else -xp)
 
-    return {"task": task["title"], "completed": completed, "xp": task.get("xp", 0)}
+    return {"task": task["title"], "task_key": task.get("task_key"), "completed": completed, "xp": xp}
 
 
 def _update_profile_xp(attr_name, xp_delta):
@@ -333,7 +372,7 @@ def _update_profile_xp(attr_name, xp_delta):
     rows = _select("profile_attributes", filters={"name": attr_name, "user_id": user_id})
     if rows:
         current = rows[0]
-        new_xp = current.get("xp", 0) + xp_delta
+        new_xp = max(0, current.get("xp", 0) + xp_delta)
         # 检查升级
         next_xp = current.get("next_xp", 100)
         level = current.get("level", 1)

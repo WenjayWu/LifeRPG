@@ -52,6 +52,18 @@ def parse_tasks_from_record(path):
     return tasks
 
 
+def load_task_key_map(root):
+    tasks_path = root / "data" / "tasks.json"
+    if not tasks_path.exists():
+        return {}
+    tasks = json.loads(tasks_path.read_text(encoding="utf-8"))
+    return {
+        task.get("title"): task.get("key")
+        for task in tasks
+        if task.get("title") and task.get("key")
+    }
+
+
 def main():
     user_id = os.environ.get("SUPABASE_USER_ID")
     if not user_id:
@@ -62,6 +74,7 @@ def main():
     profile_path = root / "data" / "profile.json"
     history_payload = json.loads(history_path.read_text(encoding="utf-8"))
     records = history_payload.get("records", history_payload if isinstance(history_payload, list) else [])
+    key_by_title = load_task_key_map(root)
 
     entries = []
     task_rows = []
@@ -81,7 +94,7 @@ def main():
             task_rows.append({
                 "user_id": user_id,
                 "task_date": date,
-                "task_key": task["title"],
+                "task_key": key_by_title.get(task["title"], task["title"]),
                 "title": task["title"],
                 "task_type": task["task_type"],
                 "attribute": task["attribute"],

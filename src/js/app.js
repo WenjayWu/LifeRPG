@@ -23,18 +23,18 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     // 任务数据：从 JSON 加载，失败时回退到本地 fallback
     let tasks = [];
     const FALLBACK_TASKS = [
-      { title: "晒太阳或散步 12 分钟", attr: "体能", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "烦躁", "空虚"], type: "恢复", note: "先让身体离开原地，别急着变强。", pool: "daily" },
-      { title: "收拾桌面 10 分钟", attr: "秩序", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "无聊", "空虚"], type: "恢复", note: "只收 10 分钟，结束后允许停止。", pool: "daily" },
-      { title: "读一页论文或一本书", attr: "智识", energy: "低", time: "10 分钟", xp: 5, states: ["普通", "低能量"], type: "成长", note: "把门槛压低，目标是恢复进入状态的能力。", pool: "daily" },
-      { title: "跑步或快走 25 分钟", attr: "体能", energy: "中", time: "30 分钟", xp: 20, states: ["烦躁", "普通", "高能量"], type: "成长", note: "适合脑子乱、身体钝的时候。", pool: "daily" },
-      { title: "做一个代码/AI 小功能", attr: "工程", energy: "中", time: "45 分钟", xp: 20, states: ["普通", "想创造", "高能量"], type: "成长", note: "只做一个可见的小改动，别开大坑。", pool: "daily" },
-      { title: "画一张速写或 UI 草图", attr: "创造", energy: "中", time: "30 分钟", xp: 20, states: ["想创造", "无聊", "普通"], type: "娱乐", note: "重点是动手，不追求成品。", pool: "creative" },
-      { title: "给一个朋友发近况", attr: "社交", energy: "低", time: "10 分钟", xp: 5, states: ["想社交", "空虚", "普通"], type: "社交", note: "一句真诚近况就够，不需要组织大型聊天。", pool: "daily" },
-      { title: "约一顿饭或一次散步", attr: "社交", energy: "中", time: "60 分钟", xp: 20, states: ["想社交", "高能量"], type: "社交", note: "优先约低压力的人。", pool: "daily" },
-      { title: "完成一个两小时 Boss 回合", attr: "智识", energy: "高", time: "2 小时", xp: 60, states: ["高能量"], type: "Boss", note: "选择论文、实验复盘、代码项目中的一个推进。", pool: "daily" },
-      { title: "城市探索半天副本", attr: "创造", energy: "高", time: "半天", xp: 60, states: ["无聊", "高能量", "想创造"], type: "娱乐", note: "带着一个主题出门，比如拍 12 张有结构感的照片。", pool: "creative" },
-      { title: "洗澡 + 换衣 + 清理 5 件物品", attr: "秩序", energy: "低", time: "30 分钟", xp: 20, states: ["低能量", "空虚"], type: "恢复", note: "低谷日的重启组合。", pool: "daily" },
-      { title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。", pool: "daily" }
+      { key: "sun_walk", title: "晒太阳或散步 12 分钟", attr: "体能", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "烦躁", "空虚"], type: "恢复", note: "先让身体离开原地，别急着变强。", pool: "daily" },
+      { key: "tidy_desk", title: "收拾桌面 10 分钟", attr: "秩序", energy: "低", time: "10 分钟", xp: 5, states: ["低能量", "无聊", "空虚"], type: "恢复", note: "只收 10 分钟，结束后允许停止。", pool: "daily" },
+      { key: "read_page", title: "读一页论文或一本书", attr: "智识", energy: "低", time: "10 分钟", xp: 5, states: ["普通", "低能量"], type: "成长", note: "把门槛压低，目标是恢复进入状态的能力。", pool: "daily" },
+      { key: "run_25min", title: "跑步或快走 25 分钟", attr: "体能", energy: "中", time: "30 分钟", xp: 20, states: ["烦躁", "普通", "高能量"], type: "成长", note: "适合脑子乱、身体钝的时候。", pool: "daily" },
+      { key: "code_snippet", title: "做一个代码/AI 小功能", attr: "工程", energy: "中", time: "45 分钟", xp: 20, states: ["普通", "想创造", "高能量"], type: "成长", note: "只做一个可见的小改动，别开大坑。", pool: "daily" },
+      { key: "sketch", title: "画一张速写或 UI 草图", attr: "创造", energy: "中", time: "30 分钟", xp: 20, states: ["想创造", "无聊", "普通"], type: "娱乐", note: "重点是动手，不追求成品。", pool: "creative" },
+      { key: "social_msg", title: "给一个朋友发近况", attr: "社交", energy: "低", time: "10 分钟", xp: 5, states: ["想社交", "空虚", "普通"], type: "社交", note: "一句真诚近况就够，不需要组织大型聊天。", pool: "daily" },
+      { key: "social_meal", title: "约一顿饭或一次散步", attr: "社交", energy: "中", time: "60 分钟", xp: 20, states: ["想社交", "高能量"], type: "社交", note: "优先约低压力的人。", pool: "daily" },
+      { key: "boss_round", title: "完成一个两小时 Boss 回合", attr: "智识", energy: "高", time: "2 小时", xp: 60, states: ["高能量"], type: "Boss", note: "选择论文、实验复盘、代码项目中的一个推进。", pool: "daily" },
+      { key: "city_explore", title: "城市探索半天副本", attr: "创造", energy: "高", time: "半天", xp: 60, states: ["无聊", "高能量", "想创造"], type: "娱乐", note: "带着一个主题出门，比如拍 12 张有结构感的照片。", pool: "creative" },
+      { key: "shower_reset", title: "洗澡 + 换衣 + 清理 5 件物品", attr: "秩序", energy: "低", time: "30 分钟", xp: 20, states: ["低能量", "空虚"], type: "恢复", note: "低谷日的重启组合。", pool: "daily" },
+      { key: "3d_print", title: "3D 打印/电子小项目推进一格", attr: "工程", energy: "高", time: "60 分钟", xp: 20, states: ["想创造", "高能量", "无聊"], type: "成长", note: "只推进建模、焊接、测试中的一个步骤。", pool: "daily" }
     ];
 
     async function loadTasks() {
@@ -43,15 +43,32 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         if (!response.ok) throw new Error('HTTP ' + response.status);
         const data = await response.json();
         if (Array.isArray(data) && data.length > 0) {
-          tasks = data;
+          tasks = data.map(normalizeTask);
           console.log(`[LifeRPG] 加载任务库: ${tasks.length} 个任务`);
           return true;
         }
       } catch (error) {
         console.warn('[LifeRPG] 加载任务库失败，使用 fallback:', error.message);
       }
-      tasks = FALLBACK_TASKS;
+      tasks = FALLBACK_TASKS.map(normalizeTask);
       return false;
+    }
+
+    function normalizeTask(task) {
+      return { ...task, key: task.key || task.title };
+    }
+
+    function taskKey(task) {
+      return task?.key || task?.title || "";
+    }
+
+    function sameTask(a, b) {
+      if (!a || !b) return false;
+      return taskKey(a) === taskKey(b) || a.title === b.title;
+    }
+
+    function findTaskByKeyOrTitle(value) {
+      return tasks.find(task => task.key === value || task.title === value);
     }
 
     const achievements = [
@@ -61,9 +78,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       { id: "streak_7", name: "周常达人", desc: "连续记录 7 天", condition: (s) => currentStreak(s.history) >= 7, icon: "📅" },
       { id: "level_up", name: "升级了", desc: "任意属性升到 Lv.3", condition: (s) => profile.attributes.some(a => a.level >= 3), icon: "⬆️" },
       { id: "all_attrs_2", name: "全面发展", desc: "所有属性达到 Lv.2", condition: (s) => profile.attributes.every(a => a.level >= 2), icon: "🌟" },
-      { id: "boss_slayer", name: "Boss 杀手", desc: "完成一个 Boss 任务", condition: (s) => s.completedTasks.some(t => tasks.find(task => task.title === t)?.type === "Boss"), icon: "👹" },
+      { id: "boss_slayer", name: "Boss 杀手", desc: "完成一个 Boss 任务", condition: (s) => s.completedTasks.some(t => findTaskByKeyOrTitle(t)?.type === "Boss"), icon: "👹" },
       { id: "social_butterfly", name: "社交蝴蝶", desc: "完成 5 个社交任务", condition: (s) => {
-        const socialTasks = s.completedTasks.filter(t => tasks.find(task => task.title === t)?.type === "社交");
+        const socialTasks = s.completedTasks.filter(t => findTaskByKeyOrTitle(t)?.type === "社交");
         return socialTasks.length >= 5;
       }, icon: "🦋" }
     ];
@@ -153,24 +170,24 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     }
 
     function handleTaskComplete(event) {
-      const taskTitle = event.target.dataset.task;
-      const task = tasks.find(t => t.title === taskTitle);
+      const task = findTaskByKeyOrTitle(event.target.dataset.task);
       if (!task) return;
+      const key = taskKey(task);
 
       if (event.target.checked) {
         // 标记完成
-        if (!state.completedTasks.includes(taskTitle)) {
-          state.completedTasks.push(taskTitle);
+        if (!state.completedTasks.includes(key)) {
+          state.completedTasks.push(key);
           // XP 累加
           addXp(task.attr, task.xp);
-          showToast(`✓ 完成「${taskTitle}」 +${task.xp} XP`);
+          showToast(`✓ 完成「${task.title}」 +${task.xp} XP`);
         }
       } else {
         // 取消完成
-        state.completedTasks = state.completedTasks.filter(t => t !== taskTitle);
+        state.completedTasks = state.completedTasks.filter(t => t !== key);
         // XP 扣除
         addXp(task.attr, -task.xp);
-        showToast(`↩ 取消「${taskTitle}」 -${task.xp} XP`);
+        showToast(`↩ 取消「${task.title}」 -${task.xp} XP`);
       }
 
       storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
@@ -409,9 +426,11 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         } else {
           await persistStatus();
         }
-        if (remoteTasks.length) {
-          taskPool.selected = remoteTasks.map(row => ({
+        taskPool.selected = remoteTasks.map(row => {
+          const source = findTaskByKeyOrTitle(row.task_key) || findTaskByKeyOrTitle(row.title) || {};
+          return {
             remoteId: row.id,
+            key: source.key || row.task_key || row.title,
             title: row.title,
             type: row.task_type,
             attr: row.attribute,
@@ -419,15 +438,15 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
             time: row.time_label,
             note: row.note,
             completed: row.completed
-          }));
-          state.completedTasks = taskPool.selected
-            .filter(task => task.completed)
-            .map(task => task.title);
-          storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
-          taskPool.recommended = taskPool.recommended.filter(task =>
-            !taskPool.selected.some(selected => selected.title === task.title)
-          );
-        }
+          };
+        });
+        state.completedTasks = taskPool.selected
+          .filter(task => task.completed)
+          .map(task => taskKey(task));
+        storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
+        taskPool.recommended = taskPool.recommended.filter(task =>
+          !taskPool.selected.some(selected => sameTask(selected, task))
+        );
         if (remoteHistory?.length) {
           state.history = remoteHistory;
         }
@@ -741,12 +760,12 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     function refreshRecommended() {
       const pool = taskPool.available.filter(task =>
-        !taskPool.selected.some(s => s.title === task.title) &&
-        !taskPool.recommended.some(r => r.title === task.title)
+        !taskPool.selected.some(s => sameTask(s, task)) &&
+        !taskPool.recommended.some(r => sameTask(r, task))
       );
       if (pool.length === 0) {
         const resetPool = tasks.filter(task =>
-          !taskPool.selected.some(s => s.title === task.title)
+          !taskPool.selected.some(s => sameTask(s, task))
         );
         if (resetPool.length === 0) {
           taskPool.recommended = [];
@@ -774,13 +793,13 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         showToast("任务清单已满（最多5个），先完成一些吧！");
         return;
       }
-      if (taskPool.selected.some(s => s.title === task.title)) {
+      if (taskPool.selected.some(s => sameTask(s, task))) {
         showToast("这个任务已经在清单里了");
         return;
       }
       const selectedTask = {...task, completed: false};
       taskPool.selected.push(selectedTask);
-      taskPool.recommended = taskPool.recommended.filter(r => r.title !== task.title);
+      taskPool.recommended = taskPool.recommended.filter(r => !sameTask(r, task));
       renderRecommendedTasks();
       renderTaskList();
       updateRefreshHint();
@@ -797,9 +816,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       showToast(`✓ 已添加「${task.title}」到清单`);
     }
 
-    async function removeFromList(taskTitle) {
-      const task = taskPool.selected.find(s => s.title === taskTitle);
-      taskPool.selected = taskPool.selected.filter(s => s.title !== taskTitle);
+    async function removeFromList(key) {
+      const task = taskPool.selected.find(s => taskKey(s) === key || s.title === key);
+      taskPool.selected = taskPool.selected.filter(s => taskKey(s) !== key && s.title !== key);
       renderTaskList();
       updateRefreshHint();
       if (task?.remoteId && canWriteRemote("任务删除")) {
@@ -811,18 +830,19 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       }
     }
 
-    async function toggleTaskComplete(taskTitle) {
-      const task = taskPool.selected.find(s => s.title === taskTitle);
+    async function toggleTaskComplete(key) {
+      const task = taskPool.selected.find(s => taskKey(s) === key || s.title === key);
       if (!task) return;
+      const keyForState = taskKey(task);
       task.completed = !task.completed;
       if (task.completed) {
-        if (!state.completedTasks.includes(taskTitle)) state.completedTasks.push(taskTitle);
+        if (!state.completedTasks.includes(keyForState)) state.completedTasks.push(keyForState);
         addXp(task.attr, task.xp);
-        showToast(`✓ 完成「${taskTitle}」 +${task.xp} XP`);
+        showToast(`✓ 完成「${task.title}」 +${task.xp} XP`);
       } else {
-        state.completedTasks = state.completedTasks.filter(title => title !== taskTitle);
+        state.completedTasks = state.completedTasks.filter(key => key !== keyForState);
         addXp(task.attr, -task.xp);
-        showToast(`↩ 取消完成「${taskTitle}」 -${task.xp} XP`);
+        showToast(`↩ 取消完成「${task.title}」 -${task.xp} XP`);
       }
       storage.setJSON("lifeRpgCompletedTasks", state.completedTasks);
       storage.set("lifeRpgCompletedDate", state.today);
@@ -861,20 +881,20 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
             <span class="pill">+${task.xp} XP</span>
           </div>
           <div class="task-actions">
-            <button class="primary-btn add-btn" data-task="${task.title}" type="button">➕ 加入清单</button>
-            <button class="ghost-btn skip-btn" data-task="${task.title}" type="button">⏭️ 跳过</button>
+            <button class="primary-btn add-btn" data-task="${taskKey(task)}" type="button">➕ 加入清单</button>
+            <button class="ghost-btn skip-btn" data-task="${taskKey(task)}" type="button">⏭️ 跳过</button>
           </div>
         </article>
       `).join("");
       container.querySelectorAll('.add-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          const task = tasks.find(t => t.title === btn.dataset.task);
+          const task = findTaskByKeyOrTitle(btn.dataset.task);
           if (task) addToList(task);
         });
       });
       container.querySelectorAll('.skip-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-          taskPool.recommended = taskPool.recommended.filter(r => r.title !== btn.dataset.task);
+          taskPool.recommended = taskPool.recommended.filter(r => taskKey(r) !== btn.dataset.task && r.title !== btn.dataset.task);
           renderRecommendedTasks();
           updateRefreshHint();
         });
@@ -892,7 +912,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       container.innerHTML = taskPool.selected.map(task => `
         <div class="task-list-item ${task.completed ? 'completed' : ''}">
           <label class="task-check">
-            <input type="checkbox" ${task.completed ? 'checked' : ''} data-task="${task.title}">
+            <input type="checkbox" ${task.completed ? 'checked' : ''} data-task="${taskKey(task)}">
             <span>${task.completed ? '✓' : ''}</span>
           </label>
           <div class="task-info">
@@ -903,7 +923,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
               <span class="pill">+${task.xp} XP</span>
             </div>
           </div>
-          <button class="remove-btn" data-task="${task.title}" type="button">✕</button>
+          <button class="remove-btn" data-task="${taskKey(task)}" type="button">✕</button>
         </div>
       `).join("");
       container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
@@ -917,7 +937,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
 
     function updateRefreshHint() {
       const remaining = tasks.filter(task =>
-        !taskPool.selected.some(s => s.title === task.title)
+        !taskPool.selected.some(s => sameTask(s, task))
       ).length;
       const hint = document.getElementById("refreshHint");
       const count = document.getElementById("remainingCount");
