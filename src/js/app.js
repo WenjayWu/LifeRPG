@@ -237,7 +237,7 @@
     }
 
     function renderAttributes() {
-      const container = document.getElementById("attrList");
+      const container = document.getElementById("stats");
       if (!container) return;
       
       container.innerHTML = profile.attributes.map(attr => `
