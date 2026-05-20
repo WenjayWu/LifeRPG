@@ -214,6 +214,23 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       
       // 确保 XP 不为负
       if (attr.xp < 0) attr.xp = 0;
+      
+      // 保存到 localStorage，避免刷新丢失
+      storage.setJSON("lifeRpgProfile", profile.attributes);
+    }
+
+    function loadProfile() {
+      const saved = storage.getJSON("lifeRpgProfile");
+      if (saved && Array.isArray(saved)) {
+        saved.forEach(savedAttr => {
+          const attr = profile.attributes.find(a => a.name === savedAttr.name);
+          if (attr) {
+            attr.level = savedAttr.level || attr.level;
+            attr.xp = savedAttr.xp || 0;
+            attr.next = savedAttr.next || attr.next;
+          }
+        });
+      }
     }
 
     function showToast(message) {
@@ -615,9 +632,6 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const roundPct = Math.round(boss.completedRounds / boss.rounds * 100);
       const isDefeated = boss.completedRounds >= boss.rounds;
       
-      // 获取 Boss 任务（从 tasks 中提取）
-      const bossTasks = tasks.filter(task => task.type === "Boss");
-      
       document.getElementById("bossText").innerHTML = `
         <div style="margin-bottom: 8px;">
           <strong>${boss.name}</strong> 
@@ -644,44 +658,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           ? `<div style="margin-top: 12px; padding: 10px; background: rgba(65,211,139,0.1); border-radius: 8px; text-align: center; color: var(--green);">🎉 Boss 已击败！获得 ${boss.reward.xp} XP</div>`
           : `<button class="primary-btn" style="margin-top: 12px; width: 100%;" onclick="advanceBossRound()">⚔️ 推进一回合（20分钟）</button>`
         }
-        ${bossTasks.length > 0 ? `
-          <div style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px;">
-            <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">🎯 Boss 任务</div>
-            ${bossTasks.map(task => `
-              <div class="task-card" style="margin-bottom: 8px; padding: 12px; background: var(--panel-2); border-radius: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
-                  <strong style="font-size: 14px;">${task.title}</strong>
-                  <span class="pill" style="font-size: 11px;">Boss</span>
-                </div>
-                <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">${task.note}</div>
-                <div style="display: flex; gap: 6px; margin-bottom: 10px;">
-                  <span class="pill">${task.attr}</span>
-                  <span class="pill">${task.time}</span>
-                  <span class="pill">+${task.xp} XP</span>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                  <button class="primary-btn" style="flex: 1; font-size: 13px; padding: 8px;" onclick="addBossTask('${task.key || task.title}')">➕ 加入清单</button>
-                  <button class="ghost-btn" style="font-size: 13px; padding: 8px 12px;" onclick="skipBossTask('${task.key || task.title}')">跳过</button>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        ` : ''}
       `;
-    }
-
-    function addBossTask(taskKey) {
-      const task = findTaskByKeyOrTitle(taskKey);
-      if (!task) {
-        showToast("任务未找到");
-        return;
-      }
-      addToList(task);
-    }
-
-    function skipBossTask(taskKey) {
-      showToast("⏭️ 已跳过 Boss 任务");
-      // 可选：从当前推荐中移除，或标记为不感兴趣
     }
 
     function advanceBossRound() {
@@ -782,6 +759,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       checkAchievements();
       renderAchievements();
       loadBossState();
+      loadProfile();
       renderBoss();
       renderSkillTree();
       // Task pool is initialized separately
@@ -978,7 +956,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         return;
       }
       container.innerHTML = taskPool.recommended.map(task => `
-        <article class="task-card recommended">
+        <article class="task-card recommended ${task.type === 'Boss' ? 'boss-task' : ''}">
           <div class="task-header"><div class="task-kind">${task.type}</div></div>
           <h3>${task.title}</h3>
           <p>${task.note}</p>

@@ -855,6 +855,20 @@
       color: var(--green);
       margin-bottom: 8px;
     }
+    .task-card.recommended.boss-task {
+      border: 2px solid transparent;
+      background: linear-gradient(var(--panel-2), var(--panel-2)) padding-box,
+                  linear-gradient(135deg, var(--red), var(--violet)) border-box;
+      box-shadow: 0 0 20px rgba(240, 109, 98, 0.15);
+    }
+    .task-card.recommended.boss-task .task-kind {
+      background: linear-gradient(135deg, var(--red), var(--violet));
+      color: white;
+      font-weight: bold;
+    }
+    .task-card.recommended.boss-task h3 {
+      color: var(--red);
+    }
     .month-selector {
       background: var(--panel-2);
       border: 1px solid var(--line);
