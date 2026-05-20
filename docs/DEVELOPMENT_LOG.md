@@ -91,20 +91,21 @@ Supabase -> 导出脚本 -> records/*.md + data/history.json
 ## 未完成目标
 
 - ~~任务刷新机制~~ ✅ 2026-05-20 已完成：任务库扩充 + daily/creative 分层 + 动态加载
-- 自动备份验证：手动触发 GitHub Actions，确认 artifact 可下载且包含 `records/`、`data/history.json`、`data/profile.json`。
+- ~~自动备份验证~~ ✅ 2026-05-20 已完成：workflow 已部署验证
 - ~~任务数据源收拢~~ ✅ 2026-05-20 已完成：前端从 `data/tasks.json` 动态加载
-- 周报增强：让 `weekly_reports` 从简单统计升级为更有行动价值的趋势总结。
-- 移动端体验继续优化：减少误触、提升同步状态可见性、优化复盘和任务完成流程。
-- Edge Functions 部署：安装并配置 Supabase CLI / Deno 后，正式部署和验证 Edge Functions。
+- ~~周报增强~~ ✅ 2026-05-20 已完成：前端趋势图 + 异常检测 + 行动建议
+- 移动端体验继续优化：后续使用时按需优化
+- Edge Functions 部署 ⏸️ 暂缓：当前前端+Agent Bridge直接调Supabase已稳定，服务端计算需求出现后再投入。
 
 ## 二次开发建议顺序
 
 1. ~~任务刷新机制~~ ✅ 已完成（任务库扩充 + daily/creative 分层）
 2. ~~收拢任务模板~~ ✅ 已完成（前端从 `data/tasks.json` 动态加载）
-3. **自动备份验证**：配置 GitHub Secrets 后手动触发 workflow，下载 artifact 检查导出内容。
-4. **增强周报**：基于最近 7/30 天数据生成趋势、异常和下一步建议。
-5. Edge Functions 部署 ⏸️ 暂缓：当前前端+Agent Bridge直接调Supabase已稳定，服务端计算需求出现后再投入。
-6. 扩展玩法：在数据链路稳定后，再增加成就、Boss、技能树或更复杂的任务推荐。
+3. ~~自动备份验证~~ ✅ 已完成（workflow 已部署验证）
+4. ~~增强周报~~ ✅ 已完成（前端趋势图 + 异常检测 + 建议）
+5. 移动端体验优化：后续使用时按需优化
+6. Edge Functions 部署 ⏸️ 暂缓：当前前端+Agent Bridge直接调Supabase已稳定，服务端计算需求出现后再投入。
+7. 扩展玩法：在数据链路稳定后，再增加成就、Boss、技能树或更复杂的任务推荐。
 
 ## 安全提醒
 
