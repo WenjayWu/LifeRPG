@@ -241,12 +241,14 @@
       if (!container) return;
       
       container.innerHTML = profile.attributes.map(attr => `
-        <div class="attr-item">
-          <div class="attr-name">${attr.name}</div>
-          <div class="attr-bar">
-            <div class="attr-fill" style="width: ${(attr.xp / attr.next * 100).toFixed(1)}%; background: ${attr.color};"></div>
+        <div class="stat-item">
+          <div class="stat-head">
+            <strong>${attr.name} Lv.${attr.level}</strong>
+            <span>${attr.xp}/${attr.next} XP</span>
           </div>
-          <div class="attr-value">Lv.${attr.level} (${attr.xp}/${attr.next})</div>
+          <div class="bar">
+            <span style="width:${Math.min(100, Math.round(attr.xp / attr.next * 100))}%; background:linear-gradient(90deg, ${attr.color}, #ffffff);"></span>
+          </div>
         </div>
       `).join("");
     }
