@@ -1,4 +1,4 @@
-const CACHE_VERSION = "liferpg-pwa-v1";
+const CACHE_VERSION = "liferpg-pwa-v9";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const STATIC_ASSETS = [
   "./js/config.js",
   "./js/remote-store.js",
   "./js/app.js",
+  "./data/tasks.json",
   "./manifest.webmanifest",
   "./assets/icon.svg",
   "./assets/icon-192.png",

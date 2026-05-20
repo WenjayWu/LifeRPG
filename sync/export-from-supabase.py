@@ -117,6 +117,7 @@ def main():
             "mode": entry.get("mode") or "普通",
             "xp": xp_summary(day_tasks),
             "completedTasks": len([task for task in day_tasks if task.get("completed")]),
+            "totalTasks": len(day_tasks),
         })
 
     history = {

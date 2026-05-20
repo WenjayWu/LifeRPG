@@ -249,6 +249,7 @@
       if (error) throw error;
       return (data || []).reverse().map(entry => {
         const xp = {};
+        const totalTasks = (entry.task_instances || []).length;
         const completedTasks = (entry.task_instances || []).filter(task => task.completed).length;
         (entry.task_instances || []).forEach(task => {
           if (!task.completed) return;
@@ -263,7 +264,8 @@
           social: entry.social,
           mode: entry.mode || "普通",
           xp,
-          completedTasks
+          completedTasks,
+          totalTasks
         };
       });
     }

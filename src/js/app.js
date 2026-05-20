@@ -1,4 +1,4 @@
-const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊", "想社交", "想创造"];
+﻿const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊", "想社交", "想创造"];
     const metrics = [
       { key: "energy", label: "精力" },
       { key: "mood", label: "情绪" },
@@ -112,13 +112,13 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     };
 
     const fallbackHistory = [
-      { date: "2026-05-13", energy: 2, mood: 3, body: 2, focus: 2, social: 1, mode: "低能量", xp: { "体能": 5, "秩序": 20 }, completedTasks: 2 },
-      { date: "2026-05-14", energy: 3, mood: 3, body: 3, focus: 3, social: 2, mode: "普通", xp: { "智识": 5, "创造": 20 }, completedTasks: 2 },
-      { date: "2026-05-15", energy: 4, mood: 4, body: 4, focus: 4, social: 3, mode: "高能量", xp: { "智识": 60, "工程": 20 }, completedTasks: 2 },
-      { date: "2026-05-16", energy: 3, mood: 2, body: 3, focus: 2, social: 1, mode: "烦躁", xp: { "体能": 20, "秩序": 5 }, completedTasks: 2 },
-      { date: "2026-05-17", energy: 3, mood: 3, body: 3, focus: 2, social: 2, mode: "无聊", xp: { "创造": 60, "工程": 20 }, completedTasks: 2 },
-      { date: "2026-05-18", energy: 4, mood: 3, body: 4, focus: 3, social: 4, mode: "想社交", xp: { "社交": 20, "体能": 5 }, completedTasks: 2 },
-      { date: "2026-05-19", energy: 3, mood: 3, body: 3, focus: 3, social: 3, mode: "普通", xp: { "智识": 5, "创造": 20, "秩序": 5 }, completedTasks: 3 }
+      { date: "2026-05-13", energy: 2, mood: 3, body: 2, focus: 2, social: 1, mode: "低能量", xp: { "体能": 5, "秩序": 20 }, completedTasks: 2, totalTasks: 3 },
+      { date: "2026-05-14", energy: 3, mood: 3, body: 3, focus: 3, social: 2, mode: "普通", xp: { "智识": 5, "创造": 20 }, completedTasks: 2, totalTasks: 2 },
+      { date: "2026-05-15", energy: 4, mood: 4, body: 4, focus: 4, social: 3, mode: "高能量", xp: { "智识": 60, "工程": 20 }, completedTasks: 2, totalTasks: 3 },
+      { date: "2026-05-16", energy: 3, mood: 2, body: 3, focus: 2, social: 1, mode: "烦躁", xp: { "体能": 20, "秩序": 5 }, completedTasks: 2, totalTasks: 4 },
+      { date: "2026-05-17", energy: 3, mood: 3, body: 3, focus: 2, social: 2, mode: "无聊", xp: { "创造": 60, "工程": 20 }, completedTasks: 2, totalTasks: 2 },
+      { date: "2026-05-18", energy: 4, mood: 3, body: 4, focus: 3, social: 4, mode: "想社交", xp: { "社交": 20, "体能": 5 }, completedTasks: 2, totalTasks: 3 },
+      { date: "2026-05-19", energy: 3, mood: 3, body: 3, focus: 3, social: 3, mode: "普通", xp: { "智识": 5, "创造": 20, "秩序": 5 }, completedTasks: 3, totalTasks: 3 }
     ];
 
     // localStorage 封装（兼容隐私模式）
@@ -995,9 +995,19 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       }
       container.innerHTML = taskPool.recommended.map(task => `
         <article class="task-card recommended ${task.type === 'Boss' ? 'boss-task' : ''}">
-          <div class="task-header"><div class="task-kind">${task.type}</div></div>
+          <div class="task-header ${task.type === 'Boss' ? 'boss-task-header' : ''}">
+            <div class="task-kind">${task.type === 'Boss' ? 'BOSS 战' : task.type}</div>
+            ${task.type === 'Boss' ? `<div class="boss-signal" aria-hidden="true"><span></span><span></span><span></span></div>` : ''}
+          </div>
           <h3>${task.title}</h3>
           <p>${task.note}</p>
+          ${task.type === 'Boss' ? `
+            <div class="boss-brief" aria-label="Boss 任务强度">
+              <span><strong>${task.time}</strong><small>作战时长</small></span>
+              <span><strong>+${task.xp}</strong><small>胜利 XP</small></span>
+              <span><strong>${task.attr}</strong><small>主属性</small></span>
+            </div>
+          ` : ''}
           <div class="task-meta">
             <span class="pill">${task.attr}</span>
             <span class="pill">${task.time}</span>
@@ -1594,7 +1604,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     function normalizeHistory(payload) {
       const records = Array.isArray(payload) ? payload : payload.records;
       return records
-        .map(record => ({
+        .map(record => {
+          const completedTasks = Number(record.completedTasks || 0);
+          const totalTasks = record.totalTasks == null ? completedTasks : Number(record.totalTasks || 0);
+          return {
           date: record.date,
           energy: Number(record.energy || record.scores?.energy || 0),
           mood: Number(record.mood || record.scores?.mood || 0),
@@ -1603,8 +1616,10 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           social: Number(record.social || record.scores?.social || 0),
           mode: record.mode || "普通",
           xp: record.xp || {},
-          completedTasks: Number(record.completedTasks || 0)
-        }))
+          completedTasks,
+          totalTasks
+        };
+        })
         .filter(record => record.date)
         .sort((a, b) => a.date.localeCompare(b.date));
     }
@@ -1647,23 +1662,22 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       });
       drawAttrGrowth(attrGrowth);
       
-      // 任务完成率 - 基于实际选择任务数计算
+      // 任务完成率：完成数 / 已加入清单任务数；无任务日不参与分母。
       const completedCount = weekRecords.reduce((sum, r) => sum + (r.completedTasks || 0), 0);
-      const totalSelected = weekRecords.reduce((sum, r) => sum + (r.totalTasks || r.completedTasks || 0), 0);
-      const avgCompletion = totalSelected > 0 ? (completedCount / totalSelected * 100).toFixed(0) : 0;
-      document.getElementById("completionRate").textContent = `${avgCompletion}%`;
+      const plannedCount = weekRecords.reduce((sum, r) => sum + (r.totalTasks > 0 ? r.totalTasks : 0), 0);
+      const avgCompletion = plannedCount > 0 ? Math.round(completedCount / plannedCount * 100) : null;
+      document.getElementById("completionRate").textContent = avgCompletion == null ? "--" : `${avgCompletion}%`;
       
       // 本周总结
       const modes = Object.entries(modeCounts).sort((a, b) => b[1] - a[1]);
       const dominantMode = modes[0]?.[0] || "普通";
       const summary = `本周主导状态：<strong>${dominantMode}</strong>。<br>
-        共记录 ${weekRecords.length} 天，完成任务 ${totalTasks} 个。<br>
+        共记录 ${weekRecords.length} 天，完成 ${completedCount} / 计划 ${plannedCount} 个任务。<br>
         最高频属性：${topAttr || "暂无"}。<br>
-        ${avgCompletion >= 80 ? "🎉 完成率优秀！" : avgCompletion >= 50 ? "📈 完成率良好，继续加油。" : "💪 下周争取完成更多任务！"}`;
+        ${avgCompletion == null ? "暂无任务清单，先建立计划再评估完成率。" : avgCompletion >= 80 ? "🎉 完成率优秀！" : avgCompletion >= 50 ? "📈 完成率良好，继续加油。" : "💪 下周争取完成更多任务！"}`;
       document.getElementById("weekSummary").innerHTML = summary;
       
-      // 7日趋势图
-      drawTrendChart(weekRecords);
+      renderWeeklyRhythm(weekRecords);
       
       // 异常检测
       const anomalies = detectAnomalies(records);
@@ -1674,6 +1688,82 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       // 行动建议
       const suggestions = generateSuggestions(weekRecords, anomalies, attrGrowth);
       document.getElementById("suggestionList").innerHTML = suggestions.map(s => `<div class="suggestion-item">• ${s}</div>`).join("");
+    }
+
+    function renderWeeklyRhythm(weekRecords) {
+      const container = document.getElementById("weeklyRhythm");
+      if (!container) return;
+
+      if (!weekRecords.length) {
+        container.innerHTML = `<div class="empty-state">暂无本周记录</div>`;
+        return;
+      }
+
+      const enriched = weekRecords.map(record => {
+        const avgScore = getAverageScore(record);
+        const totalTasks = record.totalTasks || 0;
+        const completedTasks = record.completedTasks || 0;
+        const completionRate = totalTasks > 0 ? Math.round(completedTasks / totalTasks * 100) : null;
+        return { ...record, avgScore, totalTasks, completedTasks, completionRate };
+      });
+
+      const bestDay = enriched.reduce((best, record) => record.avgScore > best.avgScore ? record : best, enriched[0]);
+      const lowDay = enriched.reduce((low, record) => record.avgScore < low.avgScore ? record : low, enriched[0]);
+      const volatileMetric = getMostVolatileMetric(enriched);
+
+      const daysHtml = enriched.map(record => {
+        const scorePct = Math.round(record.avgScore / 5 * 100);
+        const taskPct = record.completionRate == null ? 0 : record.completionRate;
+        const taskLabel = record.totalTasks > 0 ? `${record.completedTasks}/${record.totalTasks}` : "无任务";
+        return `
+          <div class="rhythm-day" title="${record.date} 平均状态 ${record.avgScore.toFixed(1)}，任务 ${taskLabel}">
+            <div class="rhythm-date">${record.date.slice(5)}</div>
+            <div class="rhythm-score">${record.avgScore.toFixed(1)}</div>
+            <div class="rhythm-bar" aria-label="平均状态 ${record.avgScore.toFixed(1)}">
+              <span style="width:${scorePct}%"></span>
+            </div>
+            <div class="rhythm-task">
+              <span>${taskLabel}</span>
+              <i style="width:${taskPct}%"></i>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      container.innerHTML = `
+        <div class="rhythm-strip">${daysHtml}</div>
+        <div class="rhythm-insights">
+          <div><strong>${bestDay.date.slice(5)}</strong><span>状态峰值 ${bestDay.avgScore.toFixed(1)}</span></div>
+          <div><strong>${lowDay.date.slice(5)}</strong><span>状态低谷 ${lowDay.avgScore.toFixed(1)}</span></div>
+          <div><strong>${volatileMetric.label}</strong><span>波动最大 ${volatileMetric.range.toFixed(1)}</span></div>
+        </div>
+      `;
+    }
+
+    function getAverageScore(record) {
+      return average([
+        record.energy,
+        record.mood,
+        record.body,
+        record.focus,
+        record.social
+      ]);
+    }
+
+    function getMostVolatileMetric(records) {
+      const metrics = [
+        { key: "energy", label: "精力" },
+        { key: "mood", label: "情绪" },
+        { key: "body", label: "身体" },
+        { key: "focus", label: "专注" },
+        { key: "social", label: "社交" }
+      ];
+
+      return metrics.map(metric => {
+        const values = records.map(record => Number(record[metric.key])).filter(Number.isFinite);
+        const range = values.length ? Math.max(...values) - Math.min(...values) : 0;
+        return { ...metric, range };
+      }).sort((a, b) => b.range - a.range)[0] || { label: "暂无", range: 0 };
     }
 
     function drawModePie(modeCounts) {
@@ -1765,99 +1855,6 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         // 属性名
         ctx.fillStyle = "#9aa8b6";
         ctx.fillText(attr, x + barW / 2, h - 10);
-      });
-    }
-
-    // 7日趋势折线图
-    function drawTrendChart(weekRecords) {
-      const canvas = document.getElementById("trendChart");
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      const pad = { left: 40, right: 20, top: 20, bottom: 30 };
-      const plotW = w - pad.left - pad.right;
-      const plotH = h - pad.top - pad.bottom;
-      
-      ctx.clearRect(0, 0, w, h);
-      
-      if (weekRecords.length < 2) {
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "13px Microsoft YaHei";
-        ctx.textAlign = "center";
-        ctx.fillText("数据不足，需至少2天", w / 2, h / 2);
-        return;
-      }
-      
-      const metrics = [
-        { key: "energy", label: "精力", color: "#41d38b" },
-        { key: "mood", label: "情绪", color: "#48c9e8" },
-        { key: "body", label: "身体", color: "#f3b94e" },
-        { key: "focus", label: "专注", color: "#a98bff" },
-        { key: "social", label: "社交", color: "#f06d62" }
-      ];
-      
-      // 绘制网格线
-      ctx.strokeStyle = "rgba(255,255,255,0.05)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 5; i++) {
-        const y = pad.top + plotH * (1 - i / 5);
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(w - pad.right, y);
-        ctx.stroke();
-        
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "10px Microsoft YaHei";
-        ctx.textAlign = "right";
-        ctx.fillText(i + "", pad.left - 5, y + 3);
-      }
-      
-      // 绘制每条折线
-      metrics.forEach(metric => {
-        const points = weekRecords.map((r, i) => {
-          const x = pad.left + (i / (weekRecords.length - 1)) * plotW;
-          const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
-          return { x, y };
-        });
-        
-        // 线条
-        ctx.strokeStyle = metric.color;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        points.forEach((p, i) => {
-          if (i === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
-        ctx.stroke();
-        
-        // 数据点
-        ctx.fillStyle = metric.color;
-        points.forEach(p => {
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-          ctx.fill();
-        });
-      });
-      
-      // 日期标签
-      ctx.fillStyle = "#9aa8b6";
-      ctx.font = "10px Microsoft YaHei";
-      ctx.textAlign = "center";
-      weekRecords.forEach((r, i) => {
-        const x = pad.left + (i / (weekRecords.length - 1)) * plotW;
-        const date = r.date.slice(5); // MM-DD
-        ctx.fillText(date, x, h - 10);
-      });
-      
-      // 图例
-      let legendX = w - pad.right - 200;
-      metrics.forEach((metric, i) => {
-        ctx.fillStyle = metric.color;
-        ctx.fillRect(legendX + i * 40, 5, 10, 3);
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "10px Microsoft YaHei";
-        ctx.fillText(metric.label, legendX + i * 40 + 14, 10);
       });
     }
 
@@ -1955,45 +1952,69 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
     function renderHeatmap(records) {
       const container = document.getElementById("heatmap");
       if (!container) return;
-      
+
       const days = ["日", "一", "二", "三", "四", "五", "六"];
       const today = new Date();
       let html = "";
-      
-      // 表头
+
       days.forEach(day => {
         html += `<div class="heatmap-weekday">${day}</div>`;
       });
-      
-      // 过去 30 天
+
       for (let i = 29; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().slice(0, 10);
+        const dateStr = getLocalDateKey(date);
         const record = records.find(r => r.date === dateStr);
-        
-        let intensity = 0;
-        let title = dateStr;
+
+        let level = { className: "heatmap-empty", label: "空白", legend: "无记录" };
+        let scoreText = "";
+        let title = `${dateStr} 未记录`;
         if (record) {
-          intensity = Math.round((record.energy + record.mood + record.body + record.focus + record.social) / 25 * 4);
-          intensity = Math.min(intensity, 4);
-          title = `${dateStr} 精力${record.energy} 情绪${record.mood} 身体${record.body}`;
+          const score = getAverageScore(record);
+          level = getHeatmapLevel(score);
+          scoreText = score.toFixed(1);
+          const taskText = record.totalTasks > 0
+            ? `任务 ${record.completedTasks || 0}/${record.totalTasks}`
+            : "无任务";
+          title = `${dateStr} ${level.label} ${scoreText}分 | 精力${record.energy} 情绪${record.mood} 身体${record.body} 专注${record.focus} 社交${record.social} | ${taskText}`;
         }
-        
-        const colors = [
-          "rgba(255,255,255,0.05)",
-          "rgba(65,211,139,0.2)",
-          "rgba(65,211,139,0.4)",
-          "rgba(65,211,139,0.6)",
-          "rgba(65,211,139,0.9)"
-        ];
-        
-        html += `<div class="heatmap-cell" style="background:${colors[intensity]}" title="${title}">${date.getDate()}</div>`;
+
+        html += `
+          <div class="heatmap-cell ${level.className}" title="${title}" aria-label="${title}">
+            <span class="heatmap-day">${date.getDate()}</span>
+            <span class="heatmap-label">${level.label}</span>
+            <span class="heatmap-score">${scoreText}</span>
+          </div>`;
       }
-      
+
+      html += `
+        <div class="heatmap-legend">
+          <span><i class="heatmap-empty"></i>空白</span>
+          <span><i class="heatmap-low"></i>低迷</span>
+          <span><i class="heatmap-mid-low"></i>偏弱</span>
+          <span><i class="heatmap-mid"></i>一般</span>
+          <span><i class="heatmap-good"></i>良好</span>
+          <span><i class="heatmap-high"></i>高峰</span>
+        </div>`;
+
       container.innerHTML = html;
     }
 
+    function getLocalDateKey(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function getHeatmapLevel(score) {
+      if (score < 2.4) return { className: "heatmap-low", label: "低迷" };
+      if (score < 3.0) return { className: "heatmap-mid-low", label: "偏弱" };
+      if (score < 3.6) return { className: "heatmap-mid", label: "一般" };
+      if (score < 4.2) return { className: "heatmap-good", label: "良好" };
+      return { className: "heatmap-high", label: "高峰" };
+    }
     function drawTrend(records) {
       const canvas = document.getElementById("trend");
       canvas.classList.add("trend-chart");
