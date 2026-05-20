@@ -615,6 +615,9 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       const roundPct = Math.round(boss.completedRounds / boss.rounds * 100);
       const isDefeated = boss.completedRounds >= boss.rounds;
       
+      // 获取 Boss 任务（从 tasks 中提取）
+      const bossTasks = tasks.filter(task => task.type === "Boss");
+      
       document.getElementById("bossText").innerHTML = `
         <div style="margin-bottom: 8px;">
           <strong>${boss.name}</strong> 
@@ -641,7 +644,44 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
           ? `<div style="margin-top: 12px; padding: 10px; background: rgba(65,211,139,0.1); border-radius: 8px; text-align: center; color: var(--green);">🎉 Boss 已击败！获得 ${boss.reward.xp} XP</div>`
           : `<button class="primary-btn" style="margin-top: 12px; width: 100%;" onclick="advanceBossRound()">⚔️ 推进一回合（20分钟）</button>`
         }
+        ${bossTasks.length > 0 ? `
+          <div style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px;">
+            <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">🎯 Boss 任务</div>
+            ${bossTasks.map(task => `
+              <div class="task-card" style="margin-bottom: 8px; padding: 12px; background: var(--panel-2); border-radius: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 6px;">
+                  <strong style="font-size: 14px;">${task.title}</strong>
+                  <span class="pill" style="font-size: 11px;">Boss</span>
+                </div>
+                <div style="font-size: 12px; color: var(--muted); margin-bottom: 8px;">${task.note}</div>
+                <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+                  <span class="pill">${task.attr}</span>
+                  <span class="pill">${task.time}</span>
+                  <span class="pill">+${task.xp} XP</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                  <button class="primary-btn" style="flex: 1; font-size: 13px; padding: 8px;" onclick="addBossTask('${task.key || task.title}')">➕ 加入清单</button>
+                  <button class="ghost-btn" style="font-size: 13px; padding: 8px 12px;" onclick="skipBossTask('${task.key || task.title}')">跳过</button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
       `;
+    }
+
+    function addBossTask(taskKey) {
+      const task = findTaskByKeyOrTitle(taskKey);
+      if (!task) {
+        showToast("任务未找到");
+        return;
+      }
+      addToList(task);
+    }
+
+    function skipBossTask(taskKey) {
+      showToast("⏭️ 已跳过 Boss 任务");
+      // 可选：从当前推荐中移除，或标记为不感兴趣
     }
 
     function advanceBossRound() {
@@ -661,18 +701,33 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         addXp(boss.reward.attr, boss.reward.xp);
         showToast(`🎉 击败 ${boss.name}！${boss.reward.attr} +${boss.reward.xp} XP`);
         
-        // 重置 Boss（可选：切换到下一个 Boss）
+        // 切换到下一个 Boss
         setTimeout(() => {
-          if (confirm("Boss 已击败！要挑战下一个 Boss 吗？")) {
-            resetBoss();
-          }
-        }, 500);
+          rotateBoss();
+        }, 1500);
       } else {
         showToast(`⚔️ 回合 ${boss.completedRounds}/${boss.rounds} 完成！Boss HP ${boss.currentHp}/${boss.maxHp}`);
       }
     }
 
+    function rotateBoss() {
+      // 循环切换到下一个 Boss
+      const current = bosses.shift();
+      bosses.push(current);
+      
+      // 重置新 Boss 状态
+      bosses[0].completedRounds = 0;
+      bosses[0].currentHp = bosses[0].maxHp;
+      
+      storage.setJSON("lifeRpgBossIndex", 0);
+      storage.remove("lifeRpgBossState");
+      
+      renderBoss();
+      showToast(`👹 新 Boss 出现：${bosses[0].name}！`);
+    }
+
     function resetBoss() {
+      // 重置当前 Boss
       const boss = bosses[0];
       boss.completedRounds = 0;
       boss.currentHp = boss.maxHp;
