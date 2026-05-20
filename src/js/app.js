@@ -282,6 +282,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       initTaskPool();
       await initRemoteStore();
       updateAll();
+      initMonthSelector();
       loadHistory();
     }
 
@@ -1039,6 +1040,316 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         return;
       }
       addToList(task);
+    }
+
+    // 月度分析功能
+    function initMonthSelector() {
+      const selector = document.getElementById("monthSelector");
+      if (!selector) return;
+      
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      
+      // 生成过去12个月选项
+      for (let i = 0; i < 12; i++) {
+        const date = new Date(currentYear, currentMonth - 1 - i, 1);
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        const value = `${year}-${String(month).padStart(2, '0')}`;
+        const label = `${year}年${month}月`;
+        
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        if (i === 0) option.selected = true;
+        selector.appendChild(option);
+      }
+      
+      selector.addEventListener("change", () => {
+        renderMonthlyReport(selector.value);
+      });
+      
+      // 默认加载当前月
+      renderMonthlyReport(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
+    }
+
+    async function renderMonthlyReport(monthStr) {
+      const [year, month] = monthStr.split("-").map(Number);
+      const startDate = `${monthStr}-01`;
+      const endDate = new Date(year, month, 0).toISOString().slice(0, 10);
+      
+      // 从 Supabase 查询月度数据
+      let monthRecords = [];
+      if (canWriteRemote("月度数据")) {
+        try {
+          const entries = await remoteStore.loadMonthEntries(startDate, endDate);
+          monthRecords = entries || [];
+        } catch (error) {
+          console.warn("月度数据查询失败:", error);
+        }
+      }
+      
+      // 回退到本地历史数据
+      if (!monthRecords.length) {
+        monthRecords = state.history.filter(r => r.date >= startDate && r.date <= endDate);
+      }
+      
+      if (!monthRecords.length) {
+        document.getElementById("monthDays").textContent = "0";
+        document.getElementById("monthDaysPct").textContent = "无数据";
+        document.getElementById("monthEnergy").textContent = "--";
+        document.getElementById("monthTasks").textContent = "0";
+        document.getElementById("monthMode").textContent = "--";
+        document.getElementById("monthAnalysis").innerHTML = "本月暂无记录数据。开始每日记录，月度分析会自动生成。";
+        return;
+      }
+      
+      // 聚合计算
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const recordDays = monthRecords.length;
+      const avgEnergy = (monthRecords.reduce((s, r) => s + (r.energy || 3), 0) / recordDays).toFixed(1);
+      const totalTasks = monthRecords.reduce((s, r) => s + (r.completedTasks || 0), 0);
+      
+      // 模式分布
+      const modeCounts = {};
+      monthRecords.forEach(r => {
+        modeCounts[r.mode] = (modeCounts[r.mode] || 0) + 1;
+      });
+      const dominantMode = Object.entries(modeCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "普通";
+      
+      // 属性成长
+      const attrGrowth = {};
+      monthRecords.forEach(r => {
+        Object.entries(r.xp || {}).forEach(([attr, xp]) => {
+          attrGrowth[attr] = (attrGrowth[attr] || 0) + xp;
+        });
+      });
+      
+      // 更新 UI
+      document.getElementById("monthDays").textContent = recordDays;
+      document.getElementById("monthDaysPct").textContent = `占当月 ${Math.round(recordDays / daysInMonth * 100)}%`;
+      document.getElementById("monthEnergy").textContent = avgEnergy;
+      document.getElementById("monthTasks").textContent = totalTasks;
+      document.getElementById("monthMode").textContent = dominantMode;
+      
+      // 环比变化（对比上个月）
+      const prevMonthStr = getPrevMonthStr(monthStr);
+      const prevRecords = state.history.filter(r => r.date >= prevMonthStr + "-01" && r.date <= getMonthEnd(prevMonthStr));
+      if (prevRecords.length) {
+        const prevAvgEnergy = (prevRecords.reduce((s, r) => s + (r.energy || 3), 0) / prevRecords.length).toFixed(1);
+        const prevTasks = prevRecords.reduce((s, r) => s + (r.completedTasks || 0), 0);
+        const energyChange = (avgEnergy - prevAvgEnergy).toFixed(1);
+        const tasksChange = totalTasks - prevTasks;
+        document.getElementById("monthEnergyChange").textContent = energyChange > 0 ? `↑${energyChange} 环比` : energyChange < 0 ? `↓${Math.abs(energyChange)} 环比` : "持平";
+        document.getElementById("monthTasksChange").textContent = tasksChange > 0 ? `↑${tasksChange} 环比` : tasksChange < 0 ? `↓${Math.abs(tasksChange)} 环比` : "持平";
+      } else {
+        document.getElementById("monthEnergyChange").textContent = "无上月数据";
+        document.getElementById("monthTasksChange").textContent = "无上月数据";
+      }
+      
+      // 绘制月度趋势图
+      drawMonthTrendChart(monthRecords);
+      
+      // 生成分析文字
+      const analysis = generateMonthAnalysis(monthRecords, avgEnergy, totalTasks, dominantMode, attrGrowth, recordDays, daysInMonth);
+      document.getElementById("monthAnalysis").innerHTML = analysis;
+      
+      // 深度分析按钮
+      const deepBtn = document.getElementById("deepAnalysisBtn");
+      deepBtn.onclick = () => {
+        const summary = buildMonthSummaryForLyra(monthStr, monthRecords, avgEnergy, totalTasks, dominantMode, attrGrowth);
+        copyToClipboard(summary);
+        showToast("📋 月度数据摘要已复制，粘贴给飞书 Lyra 获取深度分析");
+      };
+    }
+
+    function getPrevMonthStr(monthStr) {
+      const [year, month] = monthStr.split("-").map(Number);
+      const prev = new Date(year, month - 2, 1);
+      return `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+    }
+
+    function getMonthEnd(monthStr) {
+      const [year, month] = monthStr.split("-").map(Number);
+      return new Date(year, month, 0).toISOString().slice(0, 10);
+    }
+
+    function drawMonthTrendChart(monthRecords) {
+      const canvas = document.getElementById("monthTrendChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = { left: 40, right: 20, top: 20, bottom: 30 };
+      const plotW = w - pad.left - pad.right;
+      const plotH = h - pad.top - pad.bottom;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      if (monthRecords.length < 2) {
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "13px Microsoft YaHei";
+        ctx.textAlign = "center";
+        ctx.fillText("数据不足，需至少2天", w / 2, h / 2);
+        return;
+      }
+      
+      const metrics = [
+        { key: "energy", label: "精力", color: "#41d38b" },
+        { key: "mood", label: "情绪", color: "#48c9e8" },
+        { key: "body", label: "身体", color: "#f3b94e" },
+        { key: "focus", label: "专注", color: "#a98bff" },
+        { key: "social", label: "社交", color: "#f06d62" }
+      ];
+      
+      // 网格线
+      ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const y = pad.top + plotH * (1 - i / 5);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(w - pad.right, y);
+        ctx.stroke();
+        
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "10px Microsoft YaHei";
+        ctx.textAlign = "right";
+        ctx.fillText(i + "", pad.left - 5, y + 3);
+      }
+      
+      // 绘制折线
+      metrics.forEach(metric => {
+        const points = monthRecords.map((r, i) => {
+          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+          const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
+          return { x, y };
+        });
+        
+        ctx.strokeStyle = metric.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+        
+        ctx.fillStyle = metric.color;
+        points.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+      
+      // 日期标签（每5天显示一个）
+      ctx.fillStyle = "#9aa8b6";
+      ctx.font = "10px Microsoft YaHei";
+      ctx.textAlign = "center";
+      monthRecords.forEach((r, i) => {
+        if (i % 5 === 0 || i === monthRecords.length - 1) {
+          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
+          const date = r.date.slice(5);
+          ctx.fillText(date, x, h - 10);
+        }
+      });
+      
+      // 图例
+      let legendX = w - pad.right - 200;
+      metrics.forEach((metric, i) => {
+        ctx.fillStyle = metric.color;
+        ctx.fillRect(legendX + i * 40, 5, 10, 3);
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "10px Microsoft YaHei";
+        ctx.fillText(metric.label, legendX + i * 40 + 14, 10);
+      });
+    }
+
+    function generateMonthAnalysis(records, avgEnergy, totalTasks, dominantMode, attrGrowth, recordDays, daysInMonth) {
+      const lines = [];
+      
+      // 记录完整性
+      const completeness = recordDays / daysInMonth;
+      if (completeness < 0.5) {
+        lines.push(`本月记录了 <strong>${recordDays}</strong> 天（占 ${Math.round(completeness * 100)}%），建议养成每日记录习惯，数据越完整分析越准确。`);
+      } else if (completeness >= 0.8) {
+        lines.push(`本月记录了 <strong>${recordDays}</strong> 天，数据完整度优秀，分析结果可靠。`);
+      } else {
+        lines.push(`本月记录了 <strong>${recordDays}</strong> 天，数据完整度良好。`);
+      }
+      
+      // 整体状态
+      lines.push(`整体状态偏向 <strong>${dominantMode}</strong>，平均精力 <strong>${avgEnergy}</strong>/5。`);
+      
+      // 精力评价
+      if (avgEnergy < 2.5) {
+        lines.push(`精力水平偏低，建议优先关注睡眠质量和作息规律，减少高强度任务安排。`);
+      } else if (avgEnergy > 4) {
+        lines.push(`精力充沛，适合推进重要项目和 Boss 战，但也要注意不要透支。`);
+      } else {
+        lines.push(`精力水平适中，保持当前节奏即可。`);
+      }
+      
+      // 任务完成情况
+      if (totalTasks > 60) {
+        lines.push(`完成任务 <strong>${totalTasks}</strong> 个，执行力优秀，保持这个节奏！`);
+      } else if (totalTasks > 30) {
+        lines.push(`完成任务 <strong>${totalTasks}</strong> 个，进度良好，可以适当提高挑战难度。`);
+      } else if (totalTasks > 0) {
+        lines.push(`完成任务 <strong>${totalTasks}</strong> 个，建议降低任务门槛，从简单任务开始建立正反馈。`);
+      } else {
+        lines.push(`本月未完成任务，建议从最简单的恢复类任务开始。`);
+      }
+      
+      // 属性成长
+      const sortedAttrs = Object.entries(attrGrowth).sort((a, b) => b[1] - a[1]);
+      if (sortedAttrs.length > 0) {
+        const topAttr = sortedAttrs[0];
+        lines.push(`本月成长最多的属性是 <strong>${topAttr[0]}</strong>（+${topAttr[1]} XP）。`);
+        
+        const weakAttrs = sortedAttrs.filter(([_, xp]) => xp === 0).map(([attr]) => attr);
+        if (weakAttrs.length > 0) {
+          lines.push(`${weakAttrs.join("、")} 本月零成长，建议下月安排相关任务。`);
+        }
+      }
+      
+      return lines.join("<br><br>");
+    }
+
+    function buildMonthSummaryForLyra(monthStr, records, avgEnergy, totalTasks, dominantMode, attrGrowth) {
+      const lines = [
+        `📊 LifeRPG 月度分析请求`,
+        ``,
+        `月份：${monthStr}`,
+        `记录天数：${records.length}`,
+        `平均精力：${avgEnergy}/5`,
+        `主导模式：${dominantMode}`,
+        `完成任务：${totalTasks}`,
+        `属性成长：`,
+        ...Object.entries(attrGrowth).map(([attr, xp]) => `  - ${attr}: +${xp} XP`),
+        ``,
+        `请基于以上数据生成深度月度分析，包括：`,
+        `1. 整体状态评价`,
+        `2. 趋势变化分析`,
+        `3. 下月行动建议`,
+        `4. 需要关注的异常或风险`,
+      ];
+      return lines.join("\n");
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
     }
 
     async function copyForCodex() {

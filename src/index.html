@@ -240,6 +240,57 @@
         <section class="panel">
           <div class="panel-header">
             <div class="panel-title">
+              <h2>📅 月度分析</h2>
+              <span>查看任意月份的整体状态与成长</span>
+            </div>
+            <select id="monthSelector" class="month-selector">
+              <!-- 动态生成 -->
+            </select>
+          </div>
+          <div class="panel-body">
+            <div class="monthly-report" id="monthlyReport">
+              <div class="report-grid">
+                <div class="report-card">
+                  <h4>记录天数</h4>
+                  <div class="big-number" id="monthDays">--</div>
+                  <div class="small-muted" id="monthDaysPct">--</div>
+                </div>
+                <div class="report-card">
+                  <h4>平均精力</h4>
+                  <div class="big-number" id="monthEnergy">--</div>
+                  <div class="small-muted" id="monthEnergyChange">--</div>
+                </div>
+                <div class="report-card">
+                  <h4>完成任务</h4>
+                  <div class="big-number" id="monthTasks">--</div>
+                  <div class="small-muted" id="monthTasksChange">--</div>
+                </div>
+                <div class="report-card">
+                  <h4>主导模式</h4>
+                  <div class="big-number" id="monthMode">--</div>
+                  <div class="small-muted">本月最常出现</div>
+                </div>
+              </div>
+              <div class="report-grid" style="margin-top: 1rem;">
+                <div class="report-card wide">
+                  <h4>📈 月度五维趋势</h4>
+                  <canvas id="monthTrendChart" width="600" height="200"></canvas>
+                </div>
+              </div>
+              <div class="report-grid" style="margin-top: 1rem;">
+                <div class="report-card wide">
+                  <h4>💬 月度分析</h4>
+                  <div class="month-analysis" id="monthAnalysis">加载中...</div>
+                  <button class="ghost-btn" style="margin-top: 12px;" id="deepAnalysisBtn">🔮 请 Lyra 深度分析</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div class="panel-title">
               <h2>状态热力图</h2>
               <span>过去 30 天每日状态强度</span>
             </div>
