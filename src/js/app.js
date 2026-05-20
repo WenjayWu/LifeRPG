@@ -549,7 +549,6 @@
             <div class="bar"><span style="width:${pct}%; background:linear-gradient(90deg, ${item.color}, #ffffff);"></span></div>
           </div>`;
       }).join("");
-      document.getElementById("bossText").textContent = profile.boss;
       renderAchievements();
     }
 
