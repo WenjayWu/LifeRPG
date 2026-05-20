@@ -11,6 +11,8 @@ LifeRPG 是一个个人状态、任务和复盘系统。当前稳定方向是：
 - PWA 支持手机添加到主屏幕，作为日常使用入口。
 - `records/*.md`、`data/history.json`、`data/profile.json` 只作为本地导出、备份或离线 fallback，不再作为实时同步核心。
 - **Agent Bridge 闭环**：Lyra 可通过自然语言直接读写 Supabase，实现聊天即操作。
+- **自动备份**：GitHub Actions 每天定时导出 Supabase 数据为 artifact。
+- **增强周报**：7日趋势图、异常检测、行动建议。
 
 ## 已完成进度
 
