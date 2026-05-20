@@ -125,6 +125,19 @@ def main():
         "records": history_records,
     }
     (data_dir / "history.json").write_text(json.dumps(history, ensure_ascii=False, indent=4), encoding="utf-8")
+
+    # 导出属性数据
+    try:
+        attrs = request_json("profile_attributes", {"select": "*"})
+        profile = {
+            "generatedAt": entries[-1]["entry_date"] if entries else "",
+            "source": "supabase",
+            "attributes": attrs,
+        }
+        (data_dir / "profile.json").write_text(json.dumps(profile, ensure_ascii=False, indent=4), encoding="utf-8")
+    except Exception as exc:
+        print(f"⚠ profile export skipped: {exc}")
+
     print(f"✓ exported {len(history_records)} days from Supabase")
 
 
