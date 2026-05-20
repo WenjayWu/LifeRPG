@@ -33,6 +33,12 @@ LifeRPG 是一个个人状态、任务和复盘系统。当前稳定方向是：
 - **修复时区问题**：前端 `state.today` 改用 `toLocaleDateString('zh-CN')`，与 Agent Bridge 统一使用 Asia/Shanghai 时区
 - **Heartbeat 集成**：LifeRPG 状态检查从 Cron 移至 Heartbeat，每 30 分钟检查任务完成/属性变化
 - **安全加固**：`service_role` key 仅本地 `.env` 存储，权限 600，不上传云端
+- **任务库扩充与分层**：
+  - `data/tasks.json` 从 12 个任务扩充至 38 个（daily 池 26 个 + creative 池 12 个）
+  - 新增 `pool` 字段区分日常推荐池和反无聊抽卡池
+  - 前端 `src/js/app.js` 改为从 `data/tasks.json` 动态加载，离线回退到 fallback
+  - 日常推荐从 daily 池选取，反无聊抽卡从 creative 池选取，实现差异化
+  - `src/data/tasks.json` 同步复制，供 GitHub Pages 发布
 
 ## 当前架构
 
@@ -74,20 +80,21 @@ Supabase -> 导出脚本 -> records/*.md + data/history.json
 
 ## 未完成目标
 
-- **任务刷新机制**：推荐 3 个 → 用户选择 → 刷新换 3 个 → 确认今日列表（前端交互优化）。
+- ~~任务刷新机制~~ ✅ 2026-05-20 已完成：任务库扩充 + daily/creative 分层 + 动态加载
 - 自动备份：定时从 Supabase 导出 `records/*.md` 和 `data/history.json`。
-- 任务数据源收拢：避免前端、CLI 和 Edge Functions 各维护一份任务库。
+- ~~任务数据源收拢~~ ✅ 2026-05-20 已完成：前端从 `data/tasks.json` 动态加载
 - 周报增强：让 `weekly_reports` 从简单统计升级为更有行动价值的趋势总结。
 - 移动端体验继续优化：减少误触、提升同步状态可见性、优化复盘和任务完成流程。
 - Edge Functions 部署：安装并配置 Supabase CLI / Deno 后，正式部署和验证 Edge Functions。
 
 ## 二次开发建议顺序
 
-1. **任务刷新机制**：前端实现"推荐 3 个 → 选择/刷新 → 确认列表"的交互流程。
-2. 收拢任务模板：让 `data/tasks.json` 成为前端、CLI、Edge Functions 的共同数据源。
-3. 做自动备份：用 GitHub Actions 或本地计划任务定时执行 Supabase 导出。
-4. 增强周报：基于最近 7/30 天数据生成趋势、异常和下一步建议。
-5. 扩展玩法：在数据链路稳定后，再增加成就、Boss、技能树或更复杂的任务推荐。
+1. ~~任务刷新机制~~ ✅ 已完成（任务库扩充 + daily/creative 分层）
+2. ~~收拢任务模板~~ ✅ 已完成（前端从 `data/tasks.json` 动态加载）
+3. **自动备份**：用 GitHub Actions 或本地计划任务定时执行 Supabase 导出。
+4. **增强周报**：基于最近 7/30 天数据生成趋势、异常和下一步建议。
+5. **Edge Functions 部署**：安装并配置 Supabase CLI / Deno 后，正式部署和验证。
+6. 扩展玩法：在数据链路稳定后，再增加成就、Boss、技能树或更复杂的任务推荐。
 
 ## 安全提醒
 
