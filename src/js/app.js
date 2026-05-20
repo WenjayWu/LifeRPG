@@ -217,20 +217,24 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       
       // 保存到 localStorage，避免刷新丢失
       storage.setJSON("lifeRpgProfile", profile.attributes);
+      
+      // 更新属性显示
+      renderAttributes();
     }
 
-    function loadProfile() {
-      const saved = storage.getJSON("lifeRpgProfile");
-      if (saved && Array.isArray(saved)) {
-        saved.forEach(savedAttr => {
-          const attr = profile.attributes.find(a => a.name === savedAttr.name);
-          if (attr) {
-            attr.level = savedAttr.level || attr.level;
-            attr.xp = savedAttr.xp || 0;
-            attr.next = savedAttr.next || attr.next;
-          }
-        });
-      }
+    function renderAttributes() {
+      const container = document.getElementById("attrList");
+      if (!container) return;
+      
+      container.innerHTML = profile.attributes.map(attr => `
+        <div class="attr-item">
+          <div class="attr-name">${attr.name}</div>
+          <div class="attr-bar">
+            <div class="attr-fill" style="width: ${(attr.xp / attr.next * 100).toFixed(1)}%; background: ${attr.color};"></div>
+          </div>
+          <div class="attr-value">Lv.${attr.level} (${attr.xp}/${attr.next})</div>
+        </div>
+      `).join("");
     }
 
     function showToast(message) {
@@ -761,6 +765,7 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
       loadBossState();
       loadProfile();
       renderBoss();
+      renderAttributes();
       renderSkillTree();
       // Task pool is initialized separately
     }
