@@ -103,7 +103,7 @@ Supabase -> 导出脚本 -> records/*.md + data/history.json
 2. ~~收拢任务模板~~ ✅ 已完成（前端从 `data/tasks.json` 动态加载）
 3. **自动备份验证**：配置 GitHub Secrets 后手动触发 workflow，下载 artifact 检查导出内容。
 4. **增强周报**：基于最近 7/30 天数据生成趋势、异常和下一步建议。
-5. **Edge Functions 部署**：安装并配置 Supabase CLI / Deno 后，正式部署和验证。
+5. Edge Functions 部署 ⏸️ 暂缓：当前前端+Agent Bridge直接调Supabase已稳定，服务端计算需求出现后再投入。
 6. 扩展玩法：在数据链路稳定后，再增加成就、Boss、技能树或更复杂的任务推荐。
 
 ## 安全提醒
