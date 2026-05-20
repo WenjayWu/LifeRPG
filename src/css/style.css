@@ -818,6 +818,9 @@
       border: 1px solid var(--line);
       background: var(--panel-2);
     }
+    .report-card.wide {
+      grid-column: 1 / -1;
+    }
 
     .report-card h4 {
       font-size: 14px;
@@ -837,6 +840,20 @@
       font-size: 13px;
       line-height: 1.7;
       color: var(--text);
+    }
+    .anomaly-list, .suggestion-list {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--text);
+      text-align: left;
+    }
+    .anomaly-item {
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+    .suggestion-item {
+      color: var(--green);
+      margin-bottom: 8px;
     }
 
     .heatmap {

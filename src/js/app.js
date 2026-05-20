@@ -1136,6 +1136,19 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         最高频属性：${topAttr || "暂无"}。<br>
         ${avgCompletion >= 80 ? "🎉 完成率优秀！" : avgCompletion >= 50 ? "📈 完成率良好，继续加油。" : "💪 下周争取完成更多任务！"}`;
       document.getElementById("weekSummary").innerHTML = summary;
+      
+      // 7日趋势图
+      drawTrendChart(weekRecords);
+      
+      // 异常检测
+      const anomalies = detectAnomalies(records);
+      document.getElementById("anomalyList").innerHTML = anomalies.length 
+        ? anomalies.map(a => `<div class="anomaly-item">• ${a}</div>`).join("")
+        : `<div class="anomaly-item">✅ 本周无异常，状态稳定。</div>`;
+      
+      // 行动建议
+      const suggestions = generateSuggestions(weekRecords, anomalies, attrGrowth);
+      document.getElementById("suggestionList").innerHTML = suggestions.map(s => `<div class="suggestion-item">• ${s}</div>`).join("");
     }
 
     function drawModePie(modeCounts) {
@@ -1228,6 +1241,190 @@ const modes = ["低能量", "普通", "高能量", "烦躁", "空虚", "无聊",
         ctx.fillStyle = "#9aa8b6";
         ctx.fillText(attr, x + barW / 2, h - 10);
       });
+    }
+
+    // 7日趋势折线图
+    function drawTrendChart(weekRecords) {
+      const canvas = document.getElementById("trendChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+      const w = canvas.width;
+      const h = canvas.height;
+      const pad = { left: 40, right: 20, top: 20, bottom: 30 };
+      const plotW = w - pad.left - pad.right;
+      const plotH = h - pad.top - pad.bottom;
+      
+      ctx.clearRect(0, 0, w, h);
+      
+      if (weekRecords.length < 2) {
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "13px Microsoft YaHei";
+        ctx.textAlign = "center";
+        ctx.fillText("数据不足，需至少2天", w / 2, h / 2);
+        return;
+      }
+      
+      const metrics = [
+        { key: "energy", label: "精力", color: "#41d38b" },
+        { key: "mood", label: "情绪", color: "#48c9e8" },
+        { key: "body", label: "身体", color: "#f3b94e" },
+        { key: "focus", label: "专注", color: "#a98bff" },
+        { key: "social", label: "社交", color: "#f06d62" }
+      ];
+      
+      // 绘制网格线
+      ctx.strokeStyle = "rgba(255,255,255,0.05)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 5; i++) {
+        const y = pad.top + plotH * (1 - i / 5);
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(w - pad.right, y);
+        ctx.stroke();
+        
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "10px Microsoft YaHei";
+        ctx.textAlign = "right";
+        ctx.fillText(i + "", pad.left - 5, y + 3);
+      }
+      
+      // 绘制每条折线
+      metrics.forEach(metric => {
+        const points = weekRecords.map((r, i) => {
+          const x = pad.left + (i / (weekRecords.length - 1)) * plotW;
+          const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
+          return { x, y };
+        });
+        
+        // 线条
+        ctx.strokeStyle = metric.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        points.forEach((p, i) => {
+          if (i === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+        
+        // 数据点
+        ctx.fillStyle = metric.color;
+        points.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      });
+      
+      // 日期标签
+      ctx.fillStyle = "#9aa8b6";
+      ctx.font = "10px Microsoft YaHei";
+      ctx.textAlign = "center";
+      weekRecords.forEach((r, i) => {
+        const x = pad.left + (i / (weekRecords.length - 1)) * plotW;
+        const date = r.date.slice(5); // MM-DD
+        ctx.fillText(date, x, h - 10);
+      });
+      
+      // 图例
+      let legendX = w - pad.right - 200;
+      metrics.forEach((metric, i) => {
+        ctx.fillStyle = metric.color;
+        ctx.fillRect(legendX + i * 40, 5, 10, 3);
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "10px Microsoft YaHei";
+        ctx.fillText(metric.label, legendX + i * 40 + 14, 10);
+      });
+    }
+
+    // 异常检测
+    function detectAnomalies(records) {
+      const anomalies = [];
+      const weekRecords = records.slice(-7);
+      
+      if (weekRecords.length < 3) return anomalies;
+      
+      // 检测连续低能量
+      const lowEnergyDays = weekRecords.filter(r => r.energy <= 2);
+      if (lowEnergyDays.length >= 3) {
+        anomalies.push(`连续 ${lowEnergyDays.length} 天精力偏低，建议优先恢复睡眠和运动`);
+      }
+      
+      // 检测连续烦躁
+      const anxiousDays = weekRecords.filter(r => r.mode === "烦躁");
+      if (anxiousDays.length >= 2) {
+        anomalies.push(`连续 ${anxiousDays.length} 天状态烦躁，建议减少刺激源、增加运动`);
+      }
+      
+      // 检测社交欲持续低迷
+      const lowSocialDays = weekRecords.filter(r => r.social <= 2);
+      if (lowSocialDays.length >= 5) {
+        anomalies.push(`社交欲持续低迷 ${lowSocialDays.length} 天，建议主动联系一位朋友`);
+      }
+      
+      // 检测完成率下降
+      if (weekRecords.length >= 5) {
+        const firstHalf = weekRecords.slice(0, Math.floor(weekRecords.length / 2));
+        const secondHalf = weekRecords.slice(Math.floor(weekRecords.length / 2));
+        const firstTasks = firstHalf.reduce((s, r) => s + (r.completedTasks || 0), 0);
+        const secondTasks = secondHalf.reduce((s, r) => s + (r.completedTasks || 0), 0);
+        if (secondTasks < firstTasks * 0.5) {
+          anomalies.push("任务完成率明显下降，建议降低任务难度或数量");
+        }
+      }
+      
+      // 检测属性停滞（7天某属性0 XP）
+      const attrGrowth = {};
+      weekRecords.forEach(r => {
+        Object.entries(r.xp || {}).forEach(([attr, xp]) => {
+          attrGrowth[attr] = (attrGrowth[attr] || 0) + xp;
+        });
+      });
+      const stagnantAttrs = Object.entries(attrGrowth).filter(([_, xp]) => xp === 0).map(([attr]) => attr);
+      if (stagnantAttrs.length > 0) {
+        anomalies.push(`${stagnantAttrs.join("、")} 属性本周零成长，建议安排相关任务`);
+      }
+      
+      return anomalies;
+    }
+
+    // 生成行动建议
+    function generateSuggestions(weekRecords, anomalies, attrGrowth) {
+      const suggestions = [];
+      const avgEnergy = weekRecords.reduce((s, r) => s + (r.energy || 3), 0) / weekRecords.length;
+      const avgMood = weekRecords.reduce((s, r) => s + (r.mood || 3), 0) / weekRecords.length;
+      
+      // 基于整体状态的建议
+      if (avgEnergy < 2.5) {
+        suggestions.push("精力偏低：本周优先安排恢复类任务，减少高强度工作");
+      } else if (avgEnergy > 4) {
+        suggestions.push("精力充沛：适合开 Boss 战，推进论文/项目大进度");
+      }
+      
+      if (avgMood < 2.5) {
+        suggestions.push("情绪偏低：增加户外活动和社交，减少独处时间");
+      }
+      
+      // 基于属性成长的建议
+      const sortedAttrs = Object.entries(attrGrowth).sort((a, b) => a[1] - b[1]);
+      const weakestAttr = sortedAttrs[0];
+      if (weakestAttr && weakestAttr[1] < 10) {
+        suggestions.push(`${weakestAttr[0]} 成长较慢：下周多安排 1-2 个相关任务`);
+      }
+      
+      // 基于异常的建议
+      if (anomalies.some(a => a.includes("社交欲"))) {
+        suggestions.push("社交破冰：给一个久未联系的朋友发消息");
+      }
+      if (anomalies.some(a => a.includes("烦躁"))) {
+        suggestions.push("降噪行动：每天冥想 10 分钟，减少信息输入");
+      }
+      
+      // 通用建议
+      if (suggestions.length < 3) {
+        suggestions.push("保持记录：连续记录有助于发现状态规律");
+      }
+      
+      return suggestions.slice(0, 4); // 最多4条
     }
 
     function renderHeatmap(records) {
