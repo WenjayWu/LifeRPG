@@ -222,6 +222,20 @@
       renderAttributes();
     }
 
+    function loadProfile() {
+      const saved = storage.getJSON("lifeRpgProfile");
+      if (saved && Array.isArray(saved)) {
+        saved.forEach(savedAttr => {
+          const attr = profile.attributes.find(a => a.name === savedAttr.name);
+          if (attr) {
+            attr.level = savedAttr.level || attr.level;
+            attr.xp = savedAttr.xp || 0;
+            attr.next = savedAttr.next || attr.next;
+          }
+        });
+      }
+    }
+
     function renderAttributes() {
       const container = document.getElementById("attrList");
       if (!container) return;
