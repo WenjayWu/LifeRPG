@@ -842,9 +842,7 @@
             <div class="boss-card defeated">
               <div class="boss-defeated-banner">
                 ✅ ${boss.name} 已被击败！
-                <div style="font-size: 13px; color: var(--muted); margin-top: 8px;">
-                  全属性 XP 已发放
-                </div>
+                <div class="boss-defeated-note">全属性 XP 已发放</div>
               </div>
             </div>
           `;
@@ -867,12 +865,14 @@
             <div class="boss-desc">${boss.desc}</div>
             <div class="boss-subtasks">
               ${boss.subTasks.map((subtask, i) => `
-                <div class="subtask-item ${i < completedCount ? 'completed' : ''}" 
-                     onclick="completeSubTask(${index}, ${i})"
-                     style="${i === completedCount ? '' : 'pointer-events: none;'}">
+                <button class="subtask-item ${i < completedCount ? 'completed' : ''}" 
+                     type="button"
+                     data-boss-index="${index}"
+                     data-subtask-index="${i}"
+                     ${i === completedCount ? '' : 'disabled'}>
                   <div class="subtask-check">${i < completedCount ? '✓' : ''}</div>
                   <div class="subtask-title">${subtask.title}</div>
-                </div>
+                </button>
               `).join('')}
             </div>
             ${currentStage ? `
@@ -880,13 +880,18 @@
                 完成奖励: ${formatRewards(currentStage.rewards)}
               </div>
             ` : `
-              <div class="boss-reward" style="background: rgba(65, 211, 139, 0.2);">
+              <div class="boss-reward boss-reward-final">
                 🎉 全部完成！击败奖励: ${formatRewards(boss.totalRewards)}
               </div>
             `}
           </div>
         `;
       }).join("");
+      container.querySelectorAll(".subtask-item").forEach(item => {
+        item.addEventListener("click", () => {
+          completeSubTask(Number(item.dataset.bossIndex), Number(item.dataset.subtaskIndex));
+        });
+      });
     }
 
     function formatRewards(rewards) {
@@ -1475,25 +1480,27 @@
       return new Date(year, month, 0).toISOString().slice(0, 10);
     }
 
+    function setupCanvas(canvas, fallbackWidth, fallbackHeight) {
+      const width = canvas.clientWidth || fallbackWidth;
+      const height = canvas.clientHeight || fallbackHeight;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      return { ctx, width, height };
+    }
+
     function drawMonthTrendChart(monthRecords) {
       const canvas = document.getElementById("monthTrendChart");
       if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const cssWidth = canvas.clientWidth || 900;
-      const cssHeight = canvas.clientHeight || 320;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.round(cssWidth * ratio);
-      canvas.height = Math.round(cssHeight * ratio);
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      const w = cssWidth;
-      const h = cssHeight;
+      const { ctx, width: w, height: h } = setupCanvas(canvas, 900, 320);
       const pad = { left: 54, right: 28, top: 62, bottom: 64 };
       const plotW = w - pad.left - pad.right;
       const plotH = h - pad.top - pad.bottom;
-      
-      ctx.clearRect(0, 0, w, h);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
       
       if (monthRecords.length < 2) {
         ctx.fillStyle = "#9aa8b6";
@@ -1844,9 +1851,73 @@
         { value: `${lowDays} 天`, label: "低能量/恢复日" },
         { value: topAttr, label: "最高频 XP 属性" }
       ].map(item => `<div class="history-kpi"><strong>${item.value}</strong><span>${item.label}</span></div>`).join("");
-      drawTrend(records.slice(-7));
+      renderRecentTrack(records.slice(-7));
+      renderRecentInsights(records.slice(-7));
       renderWeeklyReport(records);
       renderHeatmap(records);
+    }
+
+    function renderRecentTrack(records) {
+      const container = document.getElementById("recentTrack");
+      if (!container) return;
+      if (!records.length) {
+        container.innerHTML = `<div class="empty-state">暂无最近记录</div>`;
+        return;
+      }
+      container.innerHTML = records.map(record => {
+        const score = getAverageScore(record);
+        const level = getHeatmapLevel(score);
+        const taskText = record.totalTasks > 0
+          ? `${record.completedTasks || 0}/${record.totalTasks}`
+          : "无任务";
+        const attr = topXpAttribute([record]);
+        const attrText = attr === "暂无" ? "无 XP" : attr;
+        return `
+          <article class="track-day ${level.className}">
+            <div class="track-date">${record.date.slice(5)}</div>
+            <div class="track-mode">${record.mode || "普通"}</div>
+            <div class="track-score">${score.toFixed(1)}</div>
+            <div class="track-meta">
+              <span>任务 ${taskText}</span>
+              <span>${attrText}</span>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderRecentInsights(records) {
+      const container = document.getElementById("recentInsights");
+      if (!container) return;
+      if (!records.length) {
+        container.innerHTML = "";
+        return;
+      }
+      const insights = [];
+      const last = records[records.length - 1];
+      const first = records[0];
+      const energyDelta = Number(last.energy || 0) - Number(first.energy || 0);
+      const lowEnergyCount = records.filter(record => record.energy <= 2 || record.mode === "低能量").length;
+      const totalTasks = records.reduce((sum, record) => sum + Number(record.completedTasks || 0), 0);
+      const plannedTasks = records.reduce((sum, record) => sum + Number(record.totalTasks || 0), 0);
+      const topAttr = topXpAttribute(records);
+
+      if (energyDelta >= 2) insights.push({ type: "good", title: "精力回升", text: `最近从 ${first.energy || "--"} 升到 ${last.energy || "--"}，状态有明显恢复。` });
+      if (energyDelta <= -2) insights.push({ type: "warn", title: "精力下滑", text: `最近从 ${first.energy || "--"} 降到 ${last.energy || "--"}，接下来优先降低任务强度。` });
+      if (lowEnergyCount >= 3) insights.push({ type: "warn", title: "低能量偏多", text: `最近 7 天有 ${lowEnergyCount} 天偏低，适合增加恢复类任务。` });
+      if (plannedTasks > 0) {
+        const rate = Math.round(totalTasks / plannedTasks * 100);
+        insights.push({ type: rate >= 70 ? "good" : "neutral", title: "任务节奏", text: `最近完成 ${totalTasks}/${plannedTasks} 个任务，完成率 ${rate}%。` });
+      }
+      if (topAttr !== "暂无") insights.push({ type: "neutral", title: "成长重心", text: `最近 XP 最集中在「${topAttr}」，可以看看是否符合你的本周重点。` });
+      if (!insights.length) insights.push({ type: "neutral", title: "记录不足", text: "继续记录几天后，这里会显示更有意义的状态信号。" });
+
+      container.innerHTML = insights.slice(0, 4).map(item => `
+        <div class="recent-insight ${item.type}">
+          <strong>${item.title}</strong>
+          <span>${item.text}</span>
+        </div>
+      `).join("");
     }
 
     function renderWeeklyReport(records) {
@@ -1976,20 +2047,10 @@
     function drawModePie(modeCounts) {
       const canvas = document.getElementById("modePie");
       if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const cssWidth = canvas.clientWidth || 300;
-      const cssHeight = canvas.clientHeight || 240;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.round(cssWidth * ratio);
-      canvas.height = Math.round(cssHeight * ratio);
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      const w = cssWidth;
-      const h = cssHeight;
-      const cx = Math.min(w * 0.38, 126);
+      const { ctx, width: w, height: h } = setupCanvas(canvas, 300, 240);
+      const cx = Math.min(w * 0.36, 118);
       const cy = h / 2 + 4;
-      const radius = Math.min(h / 2 - 24, 94);
-      
-      ctx.clearRect(0, 0, w, h);
+      const radius = Math.min(h / 2 - 26, 90);
       
       const colors = ["#41d38b", "#48c9e8", "#f3b94e", "#a98bff", "#f06d62", "#9bd66f", "#ff8a65", "#80deea"];
       const total = Object.values(modeCounts).reduce((a, b) => a + b, 0);
@@ -2010,16 +2071,25 @@
         ctx.closePath();
         ctx.fillStyle = colors[i % colors.length];
         ctx.fill();
-        ctx.strokeStyle = "#11161c";
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = "rgba(17, 22, 28, .42)";
+        ctx.lineWidth = 1.4;
         ctx.stroke();
         startAngle += angle;
       });
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, .10)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
       
       ctx.beginPath();
       ctx.arc(cx, cy, radius * 0.48, 0, Math.PI * 2);
-      ctx.fillStyle = "#181c22";
+      ctx.fillStyle = "rgba(24, 28, 34, .94)";
       ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = "rgba(255, 255, 255, .08)";
+      ctx.stroke();
       
       ctx.fillStyle = "#eef5f7";
       ctx.font = "800 18px Microsoft YaHei, PingFang SC, sans-serif";
@@ -2030,7 +2100,7 @@
       ctx.fillStyle = "#9aa8b6";
       ctx.fillText(`${total} 天`, cx, cy + 14);
 
-      const legendX = Math.min(cx + radius + 30, w * 0.58);
+      const legendX = Math.min(cx + radius + 26, w * 0.57);
       const legendStartY = Math.max(30, cy - Object.keys(modeCounts).length * 12);
       Object.entries(modeCounts).forEach(([mode, count], i) => {
         const y = legendStartY + i * 24;
@@ -2044,27 +2114,17 @@
         ctx.fillText(mode, legendX + 12, y);
         ctx.fillStyle = "#9aa8b6";
         ctx.textAlign = "right";
-        ctx.fillText(`${count}天`, w - 10, y);
+        ctx.fillText(`${count}天`, w - 14, y);
       });
     }
 
     function drawAttrGrowth(attrGrowth) {
       const canvas = document.getElementById("attrGrowth");
       if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      const cssWidth = canvas.clientWidth || 420;
-      const cssHeight = canvas.clientHeight || 240;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.round(cssWidth * ratio);
-      canvas.height = Math.round(cssHeight * ratio);
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      const w = cssWidth;
-      const h = cssHeight;
+      const { ctx, width: w, height: h } = setupCanvas(canvas, 420, 240);
       const pad = { left: 38, right: 18, top: 28, bottom: 44 };
       const plotW = w - pad.left - pad.right;
       const plotH = h - pad.top - pad.bottom;
-      
-      ctx.clearRect(0, 0, w, h);
       
       const attrs = Object.entries(attrGrowth).sort((a, b) => b[1] - a[1]);
       if (!attrs.length) {
@@ -2077,16 +2137,19 @@
       const max = Math.max(...attrs.map(a => a[1]), 1);
       const barW = Math.min(42, plotW / attrs.length * 0.55);
       const gap = plotW / attrs.length;
-      const colors = ["#41d38b", "#55d995", "#48c9e8", "#5aa4e8", "#6d6cf0", "#a45be8"];
       
       attrs.forEach(([attr, xp], i) => {
         const x = pad.left + i * gap + (gap - barW) / 2;
         const barH = (xp / max) * plotH;
         const y = pad.top + plotH - barH;
+        const color = getAttributeColor(attr);
         
         roundRect(ctx, x, y, barW, barH, 5);
-        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillStyle = color;
         ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = "rgba(255, 255, 255, .16)";
+        ctx.stroke();
         
         ctx.fillStyle = "#eef5f7";
         ctx.font = "800 13px Microsoft YaHei, PingFang SC, sans-serif";
@@ -2097,6 +2160,10 @@
         ctx.font = "700 13px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.fillText(attr, x + barW / 2, h - 16);
       });
+    }
+
+    function getAttributeColor(attrName) {
+      return profile.attributes.find(attr => attr.name === attrName)?.color || "#9aa8b6";
     }
 
     // 异常检测
@@ -2256,100 +2323,6 @@
       if (score < 4.2) return { className: "heatmap-good", label: "良好" };
       return { className: "heatmap-high", label: "高峰" };
     }
-    function drawTrend(records) {
-      const canvas = document.getElementById("trend");
-      canvas.classList.add("trend-chart");
-      const cssWidth = canvas.clientWidth || 920;
-      const cssHeight = canvas.clientHeight || 320;
-      const ratio = window.devicePixelRatio || 1;
-      canvas.width = Math.round(cssWidth * ratio);
-      canvas.height = Math.round(cssHeight * ratio);
-      const ctx = canvas.getContext("2d");
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      const w = cssWidth;
-      const h = cssHeight;
-      const pad = { left: 48, right: 24, top: 26, bottom: 78 };
-      const plotW = w - pad.left - pad.right;
-      const plotH = h - pad.top - pad.bottom;
-      ctx.clearRect(0, 0, w, h);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
-      roundRect(ctx, pad.left, pad.top, plotW, plotH, 8);
-      ctx.fillStyle = "rgba(255, 255, 255, .025)";
-      ctx.fill();
-
-      for (let score = 1; score <= 5; score++) {
-        const y = pad.top + plotH - (score - 1) / 4 * plotH;
-        ctx.beginPath();
-        ctx.moveTo(pad.left, y);
-        ctx.lineTo(w - pad.right, y);
-        ctx.lineWidth = score === 1 ? 1.2 : 1;
-        ctx.strokeStyle = score === 1 ? "rgba(255,255,255,.20)" : "rgba(255,255,255,.09)";
-        ctx.stroke();
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
-        ctx.textAlign = "right";
-        ctx.fillText(String(score), pad.left - 14, y + 4);
-      }
-
-      const series = [
-        { key: "energy", label: "精力", color: "#41d38b" },
-        { key: "mood", label: "情绪", color: "#f3b94e" },
-        { key: "body", label: "身体", color: "#48c9e8" },
-        { key: "focus", label: "专注", color: "#a98bff" },
-        { key: "social", label: "社交", color: "#f06d62" }
-      ];
-
-      series.forEach((item, seriesIndex) => {
-        const points = records.map((record, index) => ({
-          x: pad.left + (records.length === 1 ? plotW / 2 : index / (records.length - 1) * plotW),
-          y: pad.top + plotH - (record[item.key] - 1) / 4 * plotH
-        }));
-        ctx.beginPath();
-        drawPointAlignedLine(ctx, points);
-        ctx.shadowColor = item.color;
-        ctx.shadowBlur = 7;
-        ctx.strokeStyle = item.color;
-        ctx.lineWidth = 2.4;
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-        points.forEach(point => {
-          ctx.beginPath();
-          ctx.arc(point.x, point.y, 4.2, 0, Math.PI * 2);
-          ctx.fillStyle = item.color;
-          ctx.fill();
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = "#11161c";
-          ctx.stroke();
-        });
-        ctx.fillStyle = item.color;
-        ctx.textAlign = "left";
-        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
-        const lx = pad.left + (seriesIndex % 3) * 98;
-        const ly = h - 42 + Math.floor(seriesIndex / 3) * 22;
-        ctx.beginPath();
-        ctx.arc(lx, ly - 4, 4, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillText(item.label, lx + 10, ly);
-      });
-
-      ctx.fillStyle = "#9aa8b6";
-      ctx.textAlign = "center";
-      ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
-      records.forEach((record, index) => {
-        const x = pad.left + (records.length === 1 ? plotW / 2 : index / (records.length - 1) * plotW);
-        ctx.fillText(record.date.slice(5), x, h - 58);
-      });
-      ctx.lineWidth = 1;
-    }
-
-    function drawPointAlignedLine(ctx, points) {
-      if (!points.length) return;
-      ctx.moveTo(points[0].x, points[0].y);
-      points.slice(1).forEach(point => ctx.lineTo(point.x, point.y));
-    }
-
     function roundRect(ctx, x, y, width, height, radius) {
       ctx.beginPath();
       ctx.moveTo(x + radius, y);

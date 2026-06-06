@@ -72,7 +72,7 @@
             </div>
           </div>
 
-          <div class="metric" style="margin-top: 18px;">
+          <div class="metric mode-field">
             <div class="metric-row"><label>当前更像</label><span class="small-muted">可手动覆盖</span></div>
             <div class="modes" id="modeButtons"></div>
           </div>
@@ -190,13 +190,14 @@
         <section class="panel">
           <div class="panel-header">
             <div class="panel-title">
-              <h2>历史趋势</h2>
-              <span>从 Markdown 日志汇总出的 7/30 天动态变化</span>
+              <h2>最近轨迹</h2>
+              <span>最近 7 天的状态回放、任务节奏和异常信号</span>
             </div>
           </div>
           <div class="panel-body">
             <div class="history-summary" id="historySummary"></div>
-            <canvas id="trend" width="920" height="280" aria-label="最近状态趋势图"></canvas>
+            <div class="recent-track" id="recentTrack"></div>
+            <div class="recent-insights" id="recentInsights"></div>
             <div class="history-tools">
               <span class="history-source" id="historySource">正在读取 data/history.json...</span>
               <label class="file-btn">
@@ -234,7 +235,7 @@
                   <div class="week-summary" id="weekSummary">加载中...</div>
                 </div>
               </div>
-              <div class="report-grid" style="margin-top: 1rem;">
+              <div class="report-grid report-grid-spaced">
                 <div class="report-card wide">
                   <h4>7日节奏</h4>
                   <div class="weekly-rhythm" id="weeklyRhythm">加载中...</div>
@@ -286,17 +287,17 @@
                   <div class="small-muted">本月最常出现</div>
                 </div>
               </div>
-              <div class="report-grid" style="margin-top: 1rem;">
+              <div class="report-grid report-grid-spaced">
                 <div class="report-card wide">
                   <h4>📈 月度五维趋势</h4>
                   <canvas id="monthTrendChart" class="month-trend-chart" width="900" height="320"></canvas>
                 </div>
               </div>
-              <div class="report-grid" style="margin-top: 1rem;">
+              <div class="report-grid report-grid-spaced">
                 <div class="report-card wide">
                   <h4>💬 月度分析</h4>
                   <div class="month-analysis" id="monthAnalysis">加载中...</div>
-                  <button class="ghost-btn" style="margin-top: 12px;" id="deepAnalysisBtn">🔮 请 Lyra 深度分析</button>
+                  <button class="ghost-btn deep-analysis-btn" id="deepAnalysisBtn">🔮 请 Lyra 深度分析</button>
                 </div>
               </div>
             </div>
