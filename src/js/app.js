@@ -185,6 +185,8 @@
     let reviewComposing = false;
     let syncingTasks = false;
     let taskSyncHoldUntil = 0;
+    let statusSyncHoldUntil = 0;
+    let activeStatusMetric = null;
     let pendingRemoteSnapshotTimer = null;
     let networkOnline = navigator.onLine !== false;
     let lastSyncStatus = { message: "本地模式", mode: "local" };
@@ -257,15 +259,34 @@
     function loadProfile() {
       const saved = storage.getJSON("lifeRpgProfile");
       if (saved && Array.isArray(saved)) {
-        saved.forEach(savedAttr => {
-          const attr = profile.attributes.find(a => a.name === savedAttr.name);
-          if (attr) {
-            attr.level = savedAttr.level || attr.level;
-            attr.xp = savedAttr.xp || 0;
-            attr.next = savedAttr.next || attr.next;
-          }
-        });
+        profile.attributes = mergeProfileAttributes(profile.attributes, saved);
+        storage.setJSON("lifeRpgProfile", profile.attributes);
       }
+    }
+
+    function mergeProfileAttributes(baseAttributes, incomingAttributes) {
+      const currentByName = Object.fromEntries(baseAttributes.map(attr => [attr.name, attr]));
+      return baseAttributes.map(attr => {
+        const incoming = incomingAttributes.find(item => item.name === attr.name);
+        if (!incoming) return attr;
+        const currentScore = getProgressScore(attr);
+        const incomingScore = getProgressScore(incoming);
+        const preferred = incomingScore >= currentScore ? incoming : attr;
+        return {
+          ...attr,
+          level: Number(preferred.level || attr.level),
+          xp: Number(preferred.xp ?? attr.xp),
+          next: Number(preferred.next || preferred.next_xp || attr.next),
+          color: attr.color || incoming.color || currentByName[attr.name]?.color
+        };
+      });
+    }
+
+    function getProgressScore(attr) {
+      const level = Number(attr.level || 0);
+      const xp = Number(attr.xp || 0);
+      const next = Number(attr.next || attr.next_xp || 100);
+      return level * 100000 + xp / Math.max(next, 1);
     }
 
     function renderAttributes() {
@@ -328,10 +349,12 @@
       bindRemoteAuth();
       bindNetworkStatus();
       buildModeButtons();
+      loadProfile();
       buildStats();
       bindInputs();
       restoreInputs();
       document.getElementById("recommendBtn").addEventListener("click", () => {
+        holdStatusRemoteSync(1800);
         state.mode = inferMode();
         storage.set("lifeRpgMode", state.mode);
         initTaskPool();
@@ -473,16 +496,11 @@
           remoteStore.loadProfileAttributes(profile.attributes),
           remoteStore.loadHistory(30)
         ]);
-        profile.attributes = remoteAttributes;
+        const mergedAttributes = mergeProfileAttributes(profile.attributes, remoteAttributes);
+        profile.attributes = mergedAttributes;
+        storage.setJSON("lifeRpgProfile", profile.attributes);
         if (entry) {
-          state.mode = entry.mode || state.mode;
-          storage.set("lifeRpgMode", state.mode);
-          metrics.forEach(metric => {
-            if (entry[metric.key] != null) {
-              document.getElementById(metric.key).value = entry[metric.key];
-              document.getElementById(`${metric.key}Value`).textContent = entry[metric.key];
-            }
-          });
+          applyRemoteStatus(entry);
           if (entry.review != null) {
             applyRemoteReview(entry.review || "");
           }
@@ -521,6 +539,9 @@
         renderRecommendedTasks();
         updateRefreshHint();
         updateAll();
+        if (getProfileSignature(remoteAttributes) !== getProfileSignature(profile.attributes)) {
+          await remoteStore.saveProfileAttributes(profile.attributes);
+        }
       } catch (error) {
         setSyncStatus(`同步失败：${error.message}`, "error");
       } finally {
@@ -559,11 +580,41 @@
       return syncingTasks || Date.now() < taskSyncHoldUntil;
     }
 
+    function holdStatusRemoteSync(duration = 1800) {
+      statusSyncHoldUntil = Math.max(statusSyncHoldUntil, Date.now() + duration);
+    }
+
+    function isStatusRemoteHeld() {
+      return Date.now() < statusSyncHoldUntil;
+    }
+
+    function applyRemoteStatus(entry) {
+      if (isStatusRemoteHeld() || activeStatusMetric) return;
+      state.mode = entry.mode || state.mode;
+      storage.set("lifeRpgMode", state.mode);
+      metrics.forEach(metric => {
+        if (entry[metric.key] != null) {
+          const input = document.getElementById(metric.key);
+          if (!input || document.activeElement === input) return;
+          input.value = entry[metric.key];
+          document.getElementById(`${metric.key}Value`).textContent = entry[metric.key];
+          storage.set(`lifeRpg_${metric.key}`, entry[metric.key]);
+        }
+      });
+    }
+
+    function getProfileSignature(attributes) {
+      return attributes
+        .map(attr => `${attr.name}:${attr.level}:${attr.xp}:${attr.next}`)
+        .join("|");
+    }
+
     function scheduleRemoteSnapshot() {
       if (applyingRemote) return;
-      if (isTaskRemoteHeld()) {
+      if (isTaskRemoteHeld() || isStatusRemoteHeld()) {
         clearTimeout(pendingRemoteSnapshotTimer);
-        const delay = Math.max(350, taskSyncHoldUntil - Date.now() + 200);
+        const holdUntil = Math.max(taskSyncHoldUntil, statusSyncHoldUntil);
+        const delay = Math.max(350, holdUntil - Date.now() + 200);
         pendingRemoteSnapshotTimer = setTimeout(() => {
           pendingRemoteSnapshotTimer = null;
           if (!applyingRemote) loadRemoteSnapshot();
@@ -628,6 +679,7 @@
       wrap.innerHTML = modes.map(mode => `<button class="mode-btn" type="button" data-mode="${mode}">${mode}</button>`).join("");
       wrap.querySelectorAll("button").forEach(button => {
         button.addEventListener("click", () => {
+          holdStatusRemoteSync(1800);
           state.mode = button.dataset.mode;
           storage.set("lifeRpgMode", state.mode);
           initTaskPool();
@@ -657,27 +709,49 @@
       metrics.forEach(metric => {
         const input = document.getElementById(metric.key);
         const sync = () => syncMetric(metric.key);
+        const beginLocalEdit = () => {
+          activeStatusMetric = metric.key;
+          holdStatusRemoteSync(2200);
+        };
+        const endLocalEdit = () => {
+          activeStatusMetric = null;
+          holdStatusRemoteSync(1600);
+          persistStatus();
+        };
+        input.addEventListener("pointerdown", beginLocalEdit);
+        input.addEventListener("focus", beginLocalEdit);
         input.addEventListener("input", sync);
         input.addEventListener("change", sync);
-        input.addEventListener("pointerup", sync);
+        input.addEventListener("pointerup", endLocalEdit);
+        input.addEventListener("pointercancel", endLocalEdit);
+        input.addEventListener("blur", endLocalEdit);
         input.addEventListener("keyup", sync);
       });
     }
 
     function syncMetric(key) {
       const input = document.getElementById(key);
-      document.getElementById(`${key}Value`).textContent = input.value;
+      setMetricValue(key, input.value);
+      holdStatusRemoteSync(2200);
       saveInputs();
       persistStatusDebounced();
       updateRadar();
     }
 
+    function setMetricValue(key, value) {
+      const input = document.getElementById(key);
+      const valueLabel = document.getElementById(`${key}Value`);
+      if (input) input.value = value;
+      if (valueLabel) valueLabel.textContent = value;
+    }
+
     function restoreInputs() {
       metrics.forEach(metric => {
         const saved = storage.get(`lifeRpg_${metric.key}`);
-        if (saved) document.getElementById(metric.key).value = saved;
-        syncMetric(metric.key);
+        if (saved) setMetricValue(metric.key, saved);
+        else setMetricValue(metric.key, document.getElementById(metric.key).value);
       });
+      updateRadar();
     }
 
     function saveInputs() {
@@ -685,9 +759,9 @@
     }
 
     function resetInputs() {
+      holdStatusRemoteSync(1800);
       metrics.forEach(metric => {
-        document.getElementById(metric.key).value = 3;
-        document.getElementById(`${metric.key}Value`).textContent = 3;
+        setMetricValue(metric.key, 3);
         storage.remove(`lifeRpg_${metric.key}`);
       });
       state.mode = "普通";
@@ -977,7 +1051,6 @@
       renderHistory();
       checkAchievements();
       renderAchievements();
-      loadProfile();
       initWeeklyBosses();
       renderAttributes();
       renderSkillTree();
@@ -2047,10 +2120,12 @@
     function drawModePie(modeCounts) {
       const canvas = document.getElementById("modePie");
       if (!canvas) return;
-      const { ctx, width: w, height: h } = setupCanvas(canvas, 300, 240);
-      const cx = Math.min(w * 0.36, 118);
-      const cy = h / 2 + 4;
-      const radius = Math.min(h / 2 - 26, 90);
+      const { ctx, width: w, height: h } = setupCanvas(canvas, 720, 260);
+      const entries = Object.entries(modeCounts);
+      const compact = w < 560;
+      const cx = compact ? w / 2 : Math.min(w * 0.28, 190);
+      const cy = compact ? Math.min(112, h * 0.42) : h / 2 + 4;
+      const radius = compact ? Math.min(w * 0.22, 78) : Math.min(h / 2 - 26, 100);
       
       const colors = ["#41d38b", "#48c9e8", "#f3b94e", "#a98bff", "#f06d62", "#9bd66f", "#ff8a65", "#80deea"];
       const total = Object.values(modeCounts).reduce((a, b) => a + b, 0);
@@ -2063,7 +2138,7 @@
       }
       let startAngle = -Math.PI / 2;
       
-      Object.entries(modeCounts).forEach(([mode, count], i) => {
+      entries.forEach(([mode, count], i) => {
         const angle = (count / total) * Math.PI * 2;
         ctx.beginPath();
         ctx.moveTo(cx, cy);
@@ -2100,21 +2175,23 @@
       ctx.fillStyle = "#9aa8b6";
       ctx.fillText(`${total} 天`, cx, cy + 14);
 
-      const legendX = Math.min(cx + radius + 26, w * 0.57);
-      const legendStartY = Math.max(30, cy - Object.keys(modeCounts).length * 12);
-      Object.entries(modeCounts).forEach(([mode, count], i) => {
-        const y = legendStartY + i * 24;
+      const legendX = compact ? Math.max(22, w * 0.18) : Math.min(cx + radius + 46, w * 0.52);
+      const legendCountX = compact ? w - 24 : Math.min(w - 36, legendX + 210);
+      const legendStartY = compact ? cy + radius + 24 : Math.max(34, cy - entries.length * 13);
+      const rowGap = compact ? 21 : 27;
+      entries.forEach(([mode, count], i) => {
+        const y = legendStartY + i * rowGap;
         ctx.beginPath();
         ctx.arc(legendX, y - 4, 5, 0, Math.PI * 2);
         ctx.fillStyle = colors[i % colors.length];
         ctx.fill();
         ctx.fillStyle = "#dfeaf0";
-        ctx.font = "13px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.font = "700 14px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.textAlign = "left";
         ctx.fillText(mode, legendX + 12, y);
         ctx.fillStyle = "#9aa8b6";
         ctx.textAlign = "right";
-        ctx.fillText(`${count}天`, w - 14, y);
+        ctx.fillText(`${count}天`, legendCountX, y);
       });
     }
 

@@ -1237,6 +1237,9 @@
       border: 1px solid var(--line);
       background: var(--panel-2);
     }
+    .mode-distribution-card {
+      min-height: 336px;
+    }
     .report-card.wide {
       grid-column: 1 / -1;
     }
@@ -1255,7 +1258,7 @@
     }
 
     .pie-chart {
-      max-width: 360px;
+      height: 260px;
       margin: 0 auto;
       filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .16));
     }
@@ -1755,6 +1758,12 @@
     @media (max-width: 760px) {
       .report-grid {
         grid-template-columns: 1fr;
+      }
+      .mode-distribution-card {
+        min-height: 452px;
+      }
+      .pie-chart {
+        height: 380px;
       }
       .rhythm-strip,
       .rhythm-insights,
