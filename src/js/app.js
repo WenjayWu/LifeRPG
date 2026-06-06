@@ -154,6 +154,8 @@
     let remoteReady = false;
     let applyingRemote = false;
     let saveStatusTimer = null;
+    let saveReviewTimer = null;
+    let reviewComposing = false;
     let networkOnline = navigator.onLine !== false;
     let lastSyncStatus = { message: "本地模式", mode: "local" };
 
@@ -311,11 +313,7 @@
       document.getElementById("copyCodexBtn").addEventListener("click", copyForCodex);
       document.getElementById("refreshTasksBtn").addEventListener("click", refreshRecommended);
       document.getElementById("historyFile").addEventListener("change", importHistory);
-      document.getElementById("reviewText").value = storage.get("lifeRpgReview") || "";
-      document.getElementById("reviewText").addEventListener("input", event => {
-        storage.set("lifeRpgReview", event.target.value);
-        persistReview(event.target.value);
-      });
+      bindReviewInput();
       initTaskPool();
       await initRemoteStore();
       updateAll();
@@ -458,8 +456,7 @@
             }
           });
           if (entry.review != null) {
-            document.getElementById("reviewText").value = entry.review || "";
-            storage.set("lifeRpgReview", entry.review || "");
+            applyRemoteReview(entry.review || "");
           }
         } else {
           await persistStatus();
@@ -503,6 +500,55 @@
     function persistStatusDebounced() {
       clearTimeout(saveStatusTimer);
       saveStatusTimer = setTimeout(() => persistStatus(), 500);
+    }
+
+    function persistReviewDebounced(review) {
+      clearTimeout(saveReviewTimer);
+      saveReviewTimer = setTimeout(() => persistReview(review), 900);
+    }
+
+    function flushReviewSave(review) {
+      clearTimeout(saveReviewTimer);
+      persistReview(review);
+    }
+
+    function applyRemoteReview(review) {
+      const reviewText = document.getElementById("reviewText");
+      if (!reviewText) return;
+      if (document.activeElement === reviewText || reviewComposing) return;
+      reviewText.value = review;
+      storage.set("lifeRpgReview", review);
+    }
+
+    function bindReviewInput() {
+      const reviewText = document.getElementById("reviewText");
+      if (!reviewText) return;
+      reviewText.value = storage.get("lifeRpgReview") || "";
+      reviewText.addEventListener("compositionstart", () => {
+        reviewComposing = true;
+      });
+      reviewText.addEventListener("compositionend", event => {
+        reviewComposing = false;
+        saveReviewDraft(event.target.value);
+      });
+      reviewText.addEventListener("beforeinput", event => {
+        if (event.inputType && event.inputType.toLowerCase().includes("composition")) {
+          reviewComposing = true;
+        }
+      });
+      reviewText.addEventListener("input", event => {
+        if (reviewComposing || event.isComposing) return;
+        saveReviewDraft(event.target.value);
+      });
+      reviewText.addEventListener("blur", event => {
+        reviewComposing = false;
+        flushReviewSave(event.target.value);
+      });
+    }
+
+    function saveReviewDraft(review) {
+      storage.set("lifeRpgReview", review);
+      persistReviewDebounced(review);
     }
 
     async function persistStatus() {

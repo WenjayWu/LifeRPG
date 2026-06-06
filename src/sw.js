@@ -1,4 +1,4 @@
-const CACHE_VERSION = "liferpg-pwa-v9";
+const CACHE_VERSION = "liferpg-pwa-v10";
 const STATIC_ASSETS = [
   "./",
   "./index.html",
@@ -40,17 +40,14 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET" || !isStaticAsset(request)) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      const refreshed = fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone();
-            caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(() => cached || Response.error());
-      return cached || refreshed;
-    })
+    fetch(request)
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(request).then((cached) => cached || Response.error()))
   );
 });
