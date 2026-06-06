@@ -121,6 +121,21 @@
       { date: "2026-05-19", energy: 3, mood: 3, body: 3, focus: 3, social: 3, mode: "普通", xp: { "智识": 5, "创造": 20, "秩序": 5 }, completedTasks: 3, totalTasks: 3 }
     ];
 
+    const boredomTips = [
+      { modes: ["低能量", "空虚"], tag: "轻轻动一下", text: "去窗边看一分钟云，给它起一个很离谱的名字。" },
+      { modes: ["低能量", "烦躁"], tag: "降噪", text: "把手机扣下，听听房间里最小的那个声音。" },
+      { modes: ["普通", "无聊"], tag: "观察", text: "随手拍一张今天最像电影截图的画面。" },
+      { modes: ["普通", "想创造"], tag: "脑洞", text: "给桌上第一个物品编一个隐藏身份。" },
+      { modes: ["无聊", "想创造"], tag: "换地图", text: "走到一个平时不会停留的角落，看看那里有什么细节。" },
+      { modes: ["烦躁"], tag: "冷却", text: "去洗个手，把水温调到刚好有点清醒。" },
+      { modes: ["空虚", "想社交"], tag: "连接", text: "给一个人发一句很轻的近况，不用开启长聊。" },
+      { modes: ["想社交"], tag: "小邀请", text: "问问某个人最近有没有看到什么好玩的东西。" },
+      { modes: ["高能量"], tag: "采样", text: "出门找一个你以前没认真看过的招牌或机器。" },
+      { modes: ["高能量", "想创造"], tag: "玩一下", text: "用 3 分钟画一个丑但有性格的小图标。" },
+      { modes: ["无聊"], tag: "随机", text: "打开一本书或网页，记下第一个让你觉得奇怪的词。" },
+      { modes: ["普通"], tag: "生活彩蛋", text: "给今天的房间打一个游戏场景名。" }
+    ];
+
     // localStorage 封装（兼容隐私模式）
     const storage = {
       data: {},
@@ -156,6 +171,7 @@
     let saveStatusTimer = null;
     let saveReviewTimer = null;
     let reviewComposing = false;
+    let syncingTasks = false;
     let networkOnline = navigator.onLine !== false;
     let lastSyncStatus = { message: "本地模式", mode: "local" };
 
@@ -392,7 +408,7 @@
         setSyncStatus(`多端同步已启用：${result.user.email || "已登录"}`, "remote");
         await loadRemoteSnapshot();
         remoteStore.subscribeToday(state.today, () => {
-          if (!applyingRemote) loadRemoteSnapshot();
+          if (!applyingRemote && !syncingTasks) loadRemoteSnapshot();
         });
       } catch (error) {
         remoteReady = false;
@@ -461,7 +477,7 @@
         } else {
           await persistStatus();
         }
-        taskPool.selected = remoteTasks.map(row => {
+        const remoteSelectedTasks = remoteTasks.map(row => {
           const source = findTaskByKeyOrTitle(row.task_key) || findTaskByKeyOrTitle(row.title) || {};
           return {
             remoteId: row.id,
@@ -475,6 +491,9 @@
             completed: row.completed
           };
         });
+        if (remoteSelectedTasks.length || !taskPool.selected.length) {
+          taskPool.selected = remoteSelectedTasks;
+        }
         state.completedTasks = taskPool.selected
           .filter(task => task.completed)
           .map(task => taskKey(task));
@@ -1047,13 +1066,16 @@
       }
       
       if (canWriteRemote("任务")) {
+        syncingTasks = true;
         try {
-          await persistStatus();
           const row = await remoteStore.addTaskToToday(state.today, selectedTask);
           selectedTask.remoteId = row?.id;
+          await persistStatus();
           renderTaskList();
         } catch (error) {
           setSyncStatus(`任务未同步：${error.message}`, "error");
+        } finally {
+          syncingTasks = false;
         }
       }
       showToast(`✓ 已添加「${task.title}」到清单`);
@@ -1065,10 +1087,14 @@
       renderTaskList();
       updateRefreshHint();
       if (task?.remoteId && canWriteRemote("任务删除")) {
+        syncingTasks = true;
         try {
           await remoteStore.removeTask(task.remoteId);
+          await persistStatus();
         } catch (error) {
           setSyncStatus(`删除未同步：${error.message}`, "error");
+        } finally {
+          syncingTasks = false;
         }
       }
     }
@@ -1092,6 +1118,7 @@
       renderTaskList();
       buildStats();
       if (canWriteRemote("完成状态")) {
+        syncingTasks = true;
         try {
           if (!task.remoteId) {
             const row = await remoteStore.addTaskToToday(state.today, task);
@@ -1102,6 +1129,8 @@
           await persistStatus();
         } catch (error) {
           setSyncStatus(`完成状态未同步：${error.message}`, "error");
+        } finally {
+          syncingTasks = false;
         }
       }
     }
@@ -1121,6 +1150,7 @@
       showToast(`✗ 「${task.title}」已标记为放弃/失败`);
       
       if (canWriteRemote("任务状态")) {
+        syncingTasks = true;
         try {
           if (task.remoteId) {
             await remoteStore.completeTask(task.remoteId, false);
@@ -1128,6 +1158,8 @@
           await persistStatus();
         } catch (error) {
           setSyncStatus(`状态同步失败：${error.message}`, "error");
+        } finally {
+          syncingTasks = false;
         }
       }
     }
@@ -1246,34 +1278,16 @@
     }
 
     function drawBoredom() {
-      // 从 creative 池抽卡，与日常推荐差异化
-      const creativePool = tasks.filter(task => task.pool === "creative");
-      const pool = creativePool.length ? creativePool : tasks.filter(task => task.states.includes(state.mode));
-      const drawPool = pool.length ? pool : tasks;
-      const task = drawPool[Math.floor(Math.random() * drawPool.length)];
+      const matched = boredomTips.filter(tip => tip.modes.includes(state.mode));
+      const pool = matched.length ? matched : boredomTips;
+      const tip = pool[Math.floor(Math.random() * pool.length)];
       
       document.getElementById("drawResult").innerHTML = `
-        <div style="margin-bottom: 12px;">
-          <strong>${task.title}</strong>
-          <div style="font-size: 13px; color: var(--muted); margin-top: 4px;">${task.note}</div>
-          <div style="font-size: 12px; color: var(--muted); margin-top: 8px;">
-            ${task.time} · ${task.attr} · +${task.xp} XP
-          </div>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="primary-btn" style="flex: 1;" onclick="addDrawnTask('${task.key || task.title}')">➕ 加入清单</button>
-          <button class="ghost-btn" style="flex: 1;" onclick="drawBoredom()">🔄 换一个</button>
-        </div>
+        <article class="boredom-card">
+          <div class="boredom-kind">${tip.tag}</div>
+          <p>${tip.text}</p>
+        </article>
       `;
-    }
-
-    function addDrawnTask(taskKey) {
-      const task = findTaskByKeyOrTitle(taskKey);
-      if (!task) {
-        showToast("任务未找到");
-        return;
-      }
-      addToList(task);
     }
 
     // 月度分析功能
@@ -1413,32 +1427,31 @@
       const canvas = document.getElementById("monthTrendChart");
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      const pad = { left: 40, right: 20, top: 30, bottom: 20 };
+      const cssWidth = canvas.clientWidth || 900;
+      const cssHeight = canvas.clientHeight || 320;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(cssWidth * ratio);
+      canvas.height = Math.round(cssHeight * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const w = cssWidth;
+      const h = cssHeight;
+      const pad = { left: 54, right: 28, top: 62, bottom: 64 };
       const plotW = w - pad.left - pad.right;
       const plotH = h - pad.top - pad.bottom;
       
       ctx.clearRect(0, 0, w, h);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
       
       if (monthRecords.length < 2) {
         ctx.fillStyle = "#9aa8b6";
-        ctx.font = "13px Microsoft YaHei";
+        ctx.font = "14px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("数据不足，需至少2天", w / 2, h / 2);
         return;
       }
       
       const isSparse = monthRecords.length < 5;
-      
-      // 稀疏数据提示
-      if (isSparse) {
-        ctx.fillStyle = "rgba(243, 185, 78, 0.8)";
-        ctx.font = "11px Microsoft YaHei";
-        ctx.textAlign = "right";
-        ctx.fillText(`⚠️ 仅 ${monthRecords.length} 天数据，趋势仅供参考`, w - pad.right, 20);
-      }
-      
       const metrics = [
         { key: "energy", label: "精力", color: "#41d38b" },
         { key: "mood", label: "情绪", color: "#48c9e8" },
@@ -1446,100 +1459,96 @@
         { key: "focus", label: "专注", color: "#a98bff" },
         { key: "social", label: "社交", color: "#f06d62" }
       ];
+
+      roundRect(ctx, pad.left, pad.top, plotW, plotH, 8);
+      ctx.fillStyle = "rgba(17, 21, 26, .34)";
+      ctx.fill();
       
-      // 网格线
-      ctx.strokeStyle = "rgba(255,255,255,0.05)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 5; i++) {
-        const y = pad.top + plotH * (1 - i / 5);
+      for (let score = 1; score <= 5; score++) {
+        const y = pad.top + plotH * (1 - (score - 1) / 4);
         ctx.beginPath();
         ctx.moveTo(pad.left, y);
         ctx.lineTo(w - pad.right, y);
+        ctx.strokeStyle = score === 1 ? "rgba(255,255,255,.16)" : "rgba(255,255,255,.075)";
+        ctx.lineWidth = score === 1 ? 1.2 : 1;
         ctx.stroke();
         
         ctx.fillStyle = "#9aa8b6";
-        ctx.font = "10px Microsoft YaHei";
+        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.textAlign = "right";
-        ctx.fillText(i + "", pad.left - 5, y + 3);
+        ctx.fillText(String(score), pad.left - 14, y + 4);
+      }
+
+      const legendY = 24;
+      metrics.forEach((metric, i) => {
+        const x = pad.left + i * 92;
+        ctx.beginPath();
+        ctx.arc(x, legendY - 4, 4, 0, Math.PI * 2);
+        ctx.fillStyle = metric.color;
+        ctx.fill();
+        ctx.fillStyle = "#c8d5dd";
+        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(metric.label, x + 10, legendY);
+      });
+
+      if (isSparse) {
+        ctx.fillStyle = "rgba(243, 185, 78, .92)";
+        ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.textAlign = "right";
+        ctx.fillText(`仅 ${monthRecords.length} 天数据，趋势仅供参考`, w - pad.right, legendY);
       }
       
-      // 绘制折线
       metrics.forEach(metric => {
         const validRecords = monthRecords.filter(r => r[metric.key] !== undefined && r[metric.key] !== null);
         if (validRecords.length < 2) return;
         
         const points = validRecords.map((r, i) => {
           const x = pad.left + (i / (validRecords.length - 1)) * plotW;
-          const y = pad.top + plotH * (1 - (r[metric.key] || 3) / 5);
+          const value = Math.min(5, Math.max(1, Number(r[metric.key]) || 3));
+          const y = pad.top + plotH * (1 - (value - 1) / 4);
           return { x, y, date: r.date, value: r[metric.key] };
         });
         
-        // 线条
         ctx.strokeStyle = metric.color;
-        ctx.lineWidth = 2;
+        ctx.lineWidth = isSparse ? 2.8 : 2.2;
+        ctx.shadowColor = metric.color;
+        ctx.shadowBlur = 4;
         ctx.beginPath();
         points.forEach((p, i) => {
           if (i === 0) ctx.moveTo(p.x, p.y);
           else ctx.lineTo(p.x, p.y);
         });
         ctx.stroke();
+        ctx.shadowBlur = 0;
         
-        // 数据点
         ctx.fillStyle = metric.color;
         points.forEach(p => {
           ctx.beginPath();
-          ctx.arc(p.x, p.y, isSparse ? 5 : 3, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, isSparse ? 5 : 3.5, 0, Math.PI * 2);
           ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#11161c";
+          ctx.stroke();
         });
         
-        // 稀疏数据：在点上方显示数值
         if (isSparse) {
           points.forEach(p => {
             ctx.fillStyle = metric.color;
-            ctx.font = "bold 11px Microsoft YaHei";
+            ctx.font = "bold 12px Microsoft YaHei, PingFang SC, sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText(p.value, p.x, p.y - 10);
+            ctx.fillText(p.value, p.x, p.y - 12);
           });
         }
       });
       
-      // 日期标签
-      if (isSparse) {
-        // 稀疏数据：在点下方显示日期，避免重叠
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "12px Microsoft YaHei";
-        ctx.textAlign = "center";
-        monthRecords.forEach((r, i) => {
-          const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
-          const date = r.date.slice(5);
-          // 交替上下显示，避免重叠
-          const yOffset = (i % 2 === 0) ? h - 8 : h - 22;
-          ctx.fillText(date, x, yOffset);
-        });
-      } else {
-        // 正常数据：每5天显示一个
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "10px Microsoft YaHei";
-        ctx.textAlign = "center";
-        monthRecords.forEach((r, i) => {
-          if (i % 5 === 0 || i === monthRecords.length - 1) {
-            const x = pad.left + (i / (monthRecords.length - 1)) * plotW;
-            const date = r.date.slice(5);
-            ctx.fillText(date, x, h - 10);
-          }
-        });
-      }
-      
-      // 图例 - 稀疏数据时移到左下角，避免遮挡
-      const legendX = isSparse ? pad.left : w - pad.right - 200;
-      const legendY = isSparse ? h - 35 : 20;
-      metrics.forEach((metric, i) => {
-        const x = legendX + i * 45;
-        ctx.fillStyle = metric.color;
-        ctx.fillRect(x, legendY, 10, 3);
-        ctx.fillStyle = "#9aa8b6";
-        ctx.font = "10px Microsoft YaHei";
-        ctx.fillText(metric.label, x + 14, legendY + 5);
+      ctx.fillStyle = "#9aa8b6";
+      ctx.font = "12px Microsoft YaHei, PingFang SC, sans-serif";
+      ctx.textAlign = "center";
+      monthRecords.forEach((record, index) => {
+        if (!isSparse && index % 5 !== 0 && index !== monthRecords.length - 1) return;
+        const x = pad.left + (index / (monthRecords.length - 1)) * plotW;
+        ctx.fillText(record.date.slice(5), x, h - 28);
       });
     }
 

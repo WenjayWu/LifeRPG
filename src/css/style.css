@@ -320,6 +320,13 @@
       border-radius: 8px;
     }
 
+    .month-trend-chart {
+      width: 100%;
+      height: 320px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .025), rgba(255, 255, 255, .012));
+      border: 1px solid rgba(255, 255, 255, .055);
+    }
+
     #radar {
       width: min(100%, 320px);
       aspect-ratio: 1;
@@ -502,6 +509,29 @@
       border-radius: 8px;
       background: linear-gradient(135deg, rgba(72, 201, 232, .12), rgba(243, 185, 78, .10));
       border: 1px solid var(--line);
+      line-height: 1.55;
+    }
+
+    .boredom-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .boredom-kind {
+      width: fit-content;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: #07100d;
+      background: var(--amber);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .boredom-card p {
+      color: #dfeaf0;
+      font-size: 19px;
+      font-weight: 800;
       line-height: 1.55;
     }
 

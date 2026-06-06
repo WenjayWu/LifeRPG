@@ -20,7 +20,7 @@
       <div>
         <div class="eyebrow">Life RPG v0.1</div>
         <h1>杰的人生 RPG 状态面板</h1>
-        <p class="subtitle">先判断今天的状态，再给出合适任务。低能量就恢复，高能量就打 Boss，无聊时直接抽一张现在能做的卡。</p>
+        <p class="subtitle">先判断今天的状态，再给出合适任务。低能量就恢复，高能量就打 Boss，无聊时抽一个现实活动提示。</p>
       </div>
       <div class="date-chip">
         <span>今日存档</span>
@@ -178,12 +178,12 @@
           <div class="panel-header">
             <div class="panel-title">
               <h2>反无聊抽卡</h2>
-              <span>不知道干什么时，按当前状态抽一个动作</span>
+              <span>不知道干什么时，给现实一点随机性</span>
             </div>
           </div>
           <div class="panel-body boredom">
-            <div class="draw-result" id="drawResult">还没抽卡。点击右侧按钮，拿一个现在能执行的小动作。</div>
-            <button class="primary-btn" id="drawBtn" type="button">抽一张</button>
+            <div class="draw-result" id="drawResult">还没抽卡。点击右侧按钮，拿一个现实活动提示。</div>
+            <button class="primary-btn" id="drawBtn" type="button">换个提示</button>
           </div>
         </section>
 
@@ -289,7 +289,7 @@
               <div class="report-grid" style="margin-top: 1rem;">
                 <div class="report-card wide">
                   <h4>📈 月度五维趋势</h4>
-                  <canvas id="monthTrendChart" width="600" height="200"></canvas>
+                  <canvas id="monthTrendChart" class="month-trend-chart" width="900" height="320"></canvas>
                 </div>
               </div>
               <div class="report-grid" style="margin-top: 1rem;">
