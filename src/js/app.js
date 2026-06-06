@@ -92,12 +92,24 @@
     ];
 
     const skills = [
-      { id: "morning_run", name: "晨跑", attr: "体能", reqLevel: 3, effect: "解锁晨跑任务，体能 XP+50%", unlocked: false },
-      { id: "deep_work", name: "深度工作", attr: "专注", reqLevel: 3, effect: "专注任务时间减半，XP 不变", unlocked: false },
-      { id: "social_master", name: "社交达人", attr: "社交", reqLevel: 2, effect: "社交任务 XP+100%", unlocked: false },
-      { id: "creative_burst", name: "创意爆发", attr: "创造", reqLevel: 4, effect: "无聊时抽卡必出创造任务", unlocked: false },
-      { id: "code_ninja", name: "代码忍者", attr: "工程", reqLevel: 3, effect: "工程任务时间减半", unlocked: false },
-      { id: "knowledge_seeker", name: "求知者", attr: "智识", reqLevel: 2, effect: "阅读任务 XP+50%", unlocked: false }
+      { id: "walk_start", name: "启动散步", attr: "体能", reqLevel: 2, tier: "入门", effect: "低能量日优先选 10-15 分钟活动身体的恢复项。" },
+      { id: "morning_run", name: "晨跑", attr: "体能", reqLevel: 3, tier: "进阶", effect: "状态普通以上时，把运动任务升级成户外跑走组合。" },
+      { id: "body_reset", name: "身体重启", attr: "体能", reqLevel: 5, tier: "精通", effect: "连续低能量时，优先安排睡眠、洗澡、拉伸的恢复闭环。" },
+      { id: "knowledge_seeker", name: "求知者", attr: "智识", reqLevel: 2, tier: "入门", effect: "阅读任务只要求开始一页，降低启动门槛。" },
+      { id: "paper_scout", name: "论文侦察", attr: "智识", reqLevel: 3, tier: "进阶", effect: "科研日优先做摘要、图表、方法三选一的短复盘。" },
+      { id: "model_builder", name: "模型搭建", attr: "智识", reqLevel: 5, tier: "精通", effect: "把复杂问题拆成变量、机制、证据三栏。" },
+      { id: "sketch_seed", name: "草图种子", attr: "创造", reqLevel: 2, tier: "入门", effect: "想创造但没方向时，只产出草稿，不要求作品。" },
+      { id: "creative_burst", name: "创意爆发", attr: "创造", reqLevel: 4, tier: "进阶", effect: "无聊时优先抽现实灵感卡，而不是刷信息流。" },
+      { id: "prototype_hour", name: "原型小时", attr: "创造", reqLevel: 6, tier: "精通", effect: "把灵感压缩成 60 分钟内可见的小成品。" },
+      { id: "tool_user", name: "工具熟手", attr: "工程", reqLevel: 2, tier: "入门", effect: "工程任务优先选一个明确工具或脚本，而不是泛泛学习。" },
+      { id: "code_ninja", name: "代码忍者", attr: "工程", reqLevel: 3, tier: "进阶", effect: "只做一个可验证的小功能，避免开大坑。" },
+      { id: "maker_loop", name: "造物闭环", attr: "工程", reqLevel: 5, tier: "精通", effect: "电子、建模、打印项目按设计、制作、测试循环推进。" },
+      { id: "soft_ping", name: "轻问候", attr: "社交", reqLevel: 2, tier: "入门", effect: "社交欲低时，只发一句低压力近况。" },
+      { id: "social_master", name: "社交达人", attr: "社交", reqLevel: 3, tier: "进阶", effect: "想社交时，把模糊聊天变成一个轻约定。" },
+      { id: "relationship_maintainer", name: "关系维护", attr: "社交", reqLevel: 5, tier: "精通", effect: "每周主动维护一个重要关系，而不是等情绪低谷才联系。" },
+      { id: "desk_clear", name: "桌面清场", attr: "秩序", reqLevel: 2, tier: "入门", effect: "混乱时先清理视野里的 5 个物品。" },
+      { id: "deep_work", name: "深度工作", attr: "秩序", reqLevel: 3, tier: "进阶", effect: "给重要任务开一个 25-45 分钟的无干扰回合。" },
+      { id: "weekly_system", name: "周系统", attr: "秩序", reqLevel: 5, tier: "精通", effect: "周末复盘任务完成率，调整下周任务池。" }
     ];
 
     const directives = {
@@ -172,6 +184,8 @@
     let saveReviewTimer = null;
     let reviewComposing = false;
     let syncingTasks = false;
+    let taskSyncHoldUntil = 0;
+    let pendingRemoteSnapshotTimer = null;
     let networkOnline = navigator.onLine !== false;
     let lastSyncStatus = { message: "本地模式", mode: "local" };
 
@@ -407,9 +421,7 @@
         toggleAuthControls(true);
         setSyncStatus(`多端同步已启用：${result.user.email || "已登录"}`, "remote");
         await loadRemoteSnapshot();
-        remoteStore.subscribeToday(state.today, () => {
-          if (!applyingRemote && !syncingTasks) loadRemoteSnapshot();
-        });
+        remoteStore.subscribeToday(state.today, scheduleRemoteSnapshot);
       } catch (error) {
         remoteReady = false;
         setSyncStatus(`同步不可用：${error.message}`, "error");
@@ -491,7 +503,7 @@
             completed: row.completed
           };
         });
-        if (remoteSelectedTasks.length || !taskPool.selected.length) {
+        if (remoteSelectedTasks.length || !taskPool.selected.length || !isTaskRemoteHeld()) {
           taskPool.selected = remoteSelectedTasks;
         }
         state.completedTasks = taskPool.selected
@@ -537,6 +549,28 @@
       if (document.activeElement === reviewText || reviewComposing) return;
       reviewText.value = review;
       storage.set("lifeRpgReview", review);
+    }
+
+    function holdTaskRemoteSync(duration = 2500) {
+      taskSyncHoldUntil = Math.max(taskSyncHoldUntil, Date.now() + duration);
+    }
+
+    function isTaskRemoteHeld() {
+      return syncingTasks || Date.now() < taskSyncHoldUntil;
+    }
+
+    function scheduleRemoteSnapshot() {
+      if (applyingRemote) return;
+      if (isTaskRemoteHeld()) {
+        clearTimeout(pendingRemoteSnapshotTimer);
+        const delay = Math.max(350, taskSyncHoldUntil - Date.now() + 200);
+        pendingRemoteSnapshotTimer = setTimeout(() => {
+          pendingRemoteSnapshotTimer = null;
+          if (!applyingRemote) loadRemoteSnapshot();
+        }, delay);
+        return;
+      }
+      loadRemoteSnapshot();
     }
 
     function bindReviewInput() {
@@ -823,9 +857,13 @@
         return `
           <div class="boss-card ${completedCount > 0 ? 'active' : ''}">
             <div class="boss-header">
-              <div class="boss-name">${boss.name}</div>
+              <div>
+                <div class="boss-label">WEEKLY ENCOUNTER</div>
+                <div class="boss-name">${boss.name}</div>
+              </div>
               <div class="boss-stage">${completedCount}/${totalCount} 阶段</div>
             </div>
+            <div class="boss-progress" aria-label="Boss 进度"><span style="width:${Math.round(completedCount / totalCount * 100)}%"></span></div>
             <div class="boss-desc">${boss.desc}</div>
             <div class="boss-subtasks">
               ${boss.subTasks.map((subtask, i) => `
@@ -899,6 +937,8 @@
         const attr = profile.attributes.find(a => a.name === skill.attr);
         const canUnlock = attr && attr.level >= skill.reqLevel;
         const isUnlocked = skill.unlocked || canUnlock;
+        const currentLevel = attr?.level || 0;
+        const progress = Math.min(100, Math.round(currentLevel / skill.reqLevel * 100));
         
         if (canUnlock && !skill.unlocked) {
           skill.unlocked = true;
@@ -907,9 +947,13 @@
         
         return `
           <div class="skill-node ${isUnlocked ? 'unlocked' : 'locked'}">
-            <div class="skill-icon">${isUnlocked ? '🔓' : '🔒'}</div>
+            <div class="skill-top">
+              <span class="skill-tier">${skill.tier}</span>
+              <span class="skill-state">${isUnlocked ? '已解锁' : `${currentLevel}/${skill.reqLevel}`}</span>
+            </div>
             <div class="skill-name">${skill.name}</div>
             <div class="skill-attr">${skill.attr} Lv.${skill.reqLevel}</div>
+            <div class="skill-progress"><span style="width:${progress}%"></span></div>
             <div class="skill-effect">${skill.effect}</div>
           </div>
         `;
@@ -1055,6 +1099,7 @@
       const selectedTask = {...task, completed: false};
       taskPool.selected.push(selectedTask);
       taskPool.recommended = taskPool.recommended.filter(r => !sameTask(r, task));
+      holdTaskRemoteSync();
       renderRecommendedTasks();
       renderTaskList();
       updateRefreshHint();
@@ -1076,6 +1121,7 @@
           setSyncStatus(`任务未同步：${error.message}`, "error");
         } finally {
           syncingTasks = false;
+          holdTaskRemoteSync(1200);
         }
       }
       showToast(`✓ 已添加「${task.title}」到清单`);
@@ -1084,6 +1130,7 @@
     async function removeFromList(key) {
       const task = taskPool.selected.find(s => taskKey(s) === key || s.title === key);
       taskPool.selected = taskPool.selected.filter(s => taskKey(s) !== key && s.title !== key);
+      holdTaskRemoteSync();
       renderTaskList();
       updateRefreshHint();
       if (task?.remoteId && canWriteRemote("任务删除")) {
@@ -1095,6 +1142,7 @@
           setSyncStatus(`删除未同步：${error.message}`, "error");
         } finally {
           syncingTasks = false;
+          holdTaskRemoteSync(1200);
         }
       }
     }
@@ -1104,6 +1152,7 @@
       if (!task || task.failed) return;
       const keyForState = taskKey(task);
       task.completed = !task.completed;
+      holdTaskRemoteSync();
       if (task.completed) {
         if (!state.completedTasks.includes(keyForState)) state.completedTasks.push(keyForState);
         addXp(task.attr, task.xp);
@@ -1131,6 +1180,7 @@
           setSyncStatus(`完成状态未同步：${error.message}`, "error");
         } finally {
           syncingTasks = false;
+          holdTaskRemoteSync(1200);
         }
       }
     }
@@ -1141,6 +1191,7 @@
       
       task.failed = true;
       task.completed = false;
+      holdTaskRemoteSync();
       
       const keyForState = taskKey(task);
       state.completedTasks = state.completedTasks.filter(k => k !== keyForState);
@@ -1160,6 +1211,7 @@
           setSyncStatus(`状态同步失败：${error.message}`, "error");
         } finally {
           syncingTasks = false;
+          holdTaskRemoteSync(1200);
         }
       }
     }
@@ -1235,8 +1287,8 @@
             </div>
           </div>
           <div class="task-actions-row">
-            ${!task.completed && !task.failed ? `<button class="fail-btn" data-task="${taskKey(task)}" type="button" title="标记失败/放弃">✗</button>` : ''}
-            <button class="remove-btn" data-task="${taskKey(task)}" type="button">✕</button>
+            ${!task.completed && !task.failed ? `<button class="fail-btn" data-task="${taskKey(task)}" type="button" title="标记为放弃">放弃</button>` : ''}
+            <button class="remove-btn" data-task="${taskKey(task)}" type="button" title="从清单删除">删除</button>
           </div>
         </div>
       `).join("");
@@ -1925,16 +1977,29 @@
       const canvas = document.getElementById("modePie");
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      const cx = w / 2;
-      const cy = h / 2;
-      const radius = Math.min(w, h) / 2 - 10;
+      const cssWidth = canvas.clientWidth || 300;
+      const cssHeight = canvas.clientHeight || 240;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(cssWidth * ratio);
+      canvas.height = Math.round(cssHeight * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const w = cssWidth;
+      const h = cssHeight;
+      const cx = Math.min(w * 0.38, 126);
+      const cy = h / 2 + 4;
+      const radius = Math.min(h / 2 - 24, 94);
       
       ctx.clearRect(0, 0, w, h);
       
       const colors = ["#41d38b", "#48c9e8", "#f3b94e", "#a98bff", "#f06d62", "#9bd66f", "#ff8a65", "#80deea"];
       const total = Object.values(modeCounts).reduce((a, b) => a + b, 0);
+      if (!total) {
+        ctx.fillStyle = "#9aa8b6";
+        ctx.font = "14px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("暂无模式数据", w / 2, h / 2);
+        return;
+      }
       let startAngle = -Math.PI / 2;
       
       Object.entries(modeCounts).forEach(([mode, count], i) => {
@@ -1946,35 +2011,56 @@
         ctx.fillStyle = colors[i % colors.length];
         ctx.fill();
         ctx.strokeStyle = "#11161c";
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.stroke();
         startAngle += angle;
       });
       
-      // 中心空白
       ctx.beginPath();
-      ctx.arc(cx, cy, radius * 0.5, 0, Math.PI * 2);
+      ctx.arc(cx, cy, radius * 0.48, 0, Math.PI * 2);
       ctx.fillStyle = "#181c22";
       ctx.fill();
       
-      // 中心文字
-      ctx.fillStyle = "#dfeaf0";
-      ctx.font = "bold 14px Microsoft YaHei";
+      ctx.fillStyle = "#eef5f7";
+      ctx.font = "800 18px Microsoft YaHei, PingFang SC, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("模式", cx, cy - 8);
-      ctx.font = "12px Microsoft YaHei";
+      ctx.fillText("模式", cx, cy - 10);
+      ctx.font = "700 14px Microsoft YaHei, PingFang SC, sans-serif";
       ctx.fillStyle = "#9aa8b6";
-      ctx.fillText(`${total}天`, cx, cy + 10);
+      ctx.fillText(`${total} 天`, cx, cy + 14);
+
+      const legendX = Math.min(cx + radius + 30, w * 0.58);
+      const legendStartY = Math.max(30, cy - Object.keys(modeCounts).length * 12);
+      Object.entries(modeCounts).forEach(([mode, count], i) => {
+        const y = legendStartY + i * 24;
+        ctx.beginPath();
+        ctx.arc(legendX, y - 4, 5, 0, Math.PI * 2);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
+        ctx.fillStyle = "#dfeaf0";
+        ctx.font = "13px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(mode, legendX + 12, y);
+        ctx.fillStyle = "#9aa8b6";
+        ctx.textAlign = "right";
+        ctx.fillText(`${count}天`, w - 10, y);
+      });
     }
 
     function drawAttrGrowth(attrGrowth) {
       const canvas = document.getElementById("attrGrowth");
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
-      const w = canvas.width;
-      const h = canvas.height;
-      const pad = { left: 40, right: 10, top: 20, bottom: 30 };
+      const cssWidth = canvas.clientWidth || 420;
+      const cssHeight = canvas.clientHeight || 240;
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(cssWidth * ratio);
+      canvas.height = Math.round(cssHeight * ratio);
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      const w = cssWidth;
+      const h = cssHeight;
+      const pad = { left: 38, right: 18, top: 28, bottom: 44 };
       const plotW = w - pad.left - pad.right;
       const plotH = h - pad.top - pad.bottom;
       
@@ -1983,33 +2069,33 @@
       const attrs = Object.entries(attrGrowth).sort((a, b) => b[1] - a[1]);
       if (!attrs.length) {
         ctx.fillStyle = "#9aa8b6";
-        ctx.font = "13px Microsoft YaHei";
+        ctx.font = "14px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("暂无 XP 数据", w / 2, h / 2);
         return;
       }
       const max = Math.max(...attrs.map(a => a[1]), 1);
-      const barW = plotW / attrs.length * 0.6;
+      const barW = Math.min(42, plotW / attrs.length * 0.55);
       const gap = plotW / attrs.length;
+      const colors = ["#41d38b", "#55d995", "#48c9e8", "#5aa4e8", "#6d6cf0", "#a45be8"];
       
       attrs.forEach(([attr, xp], i) => {
         const x = pad.left + i * gap + (gap - barW) / 2;
         const barH = (xp / max) * plotH;
         const y = pad.top + plotH - barH;
         
-        // 柱状图
-        ctx.fillStyle = `hsl(${120 + i * 30}, 70%, 60%)`;
-        ctx.fillRect(x, y, barW, barH);
+        roundRect(ctx, x, y, barW, barH, 5);
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fill();
         
-        // 数值
-        ctx.fillStyle = "#dfeaf0";
-        ctx.font = "11px Microsoft YaHei";
+        ctx.fillStyle = "#eef5f7";
+        ctx.font = "800 13px Microsoft YaHei, PingFang SC, sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(xp, x + barW / 2, y - 5);
+        ctx.fillText(String(xp), x + barW / 2, Math.max(14, y - 8));
         
-        // 属性名
-        ctx.fillStyle = "#9aa8b6";
-        ctx.fillText(attr, x + barW / 2, h - 10);
+        ctx.fillStyle = "#b5c2cb";
+        ctx.font = "700 13px Microsoft YaHei, PingFang SC, sans-serif";
+        ctx.fillText(attr, x + barW / 2, h - 16);
       });
     }
 

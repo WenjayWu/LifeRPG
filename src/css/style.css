@@ -641,49 +641,96 @@
 
     .skill-tree {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
       gap: 12px;
     }
 
     .skill-node {
+      display: grid;
+      gap: 8px;
+      min-height: 170px;
       padding: 14px;
       border-radius: 8px;
       border: 1px solid var(--line);
-      background: var(--panel-2);
-      text-align: center;
+      background: linear-gradient(145deg, rgba(32, 38, 48, .96), rgba(20, 25, 32, .96));
+      text-align: left;
       transition: all 0.2s ease;
     }
 
     .skill-node.unlocked {
       border-color: var(--green);
-      background: rgba(65, 211, 139, .08);
+      background: linear-gradient(145deg, rgba(65, 211, 139, .16), rgba(32, 38, 48, .96));
     }
 
     .skill-node.locked {
-      opacity: 0.5;
+      opacity: 0.62;
     }
 
-    .skill-icon {
-      font-size: 24px;
-      margin-bottom: 6px;
+    .skill-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
 
     .skill-name {
       font-weight: 800;
-      font-size: 14px;
-      margin-bottom: 4px;
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .skill-tier,
+    .skill-state {
+      display: inline-grid;
+      place-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .skill-tier {
+      color: #07100d;
+      background: var(--amber);
+    }
+
+    .skill-state {
+      color: var(--muted);
+      background: rgba(255, 255, 255, .06);
+      border: 1px solid var(--line);
+    }
+
+    .skill-node.unlocked .skill-state {
+      color: var(--green);
+      border-color: rgba(65, 211, 139, .45);
+      background: rgba(65, 211, 139, .10);
     }
 
     .skill-attr {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--muted);
-      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .skill-progress {
+      height: 7px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .skill-progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
     }
 
     .skill-effect {
       font-size: 12px;
-      color: var(--text);
-      line-height: 1.4;
+      color: #c8d5dd;
+      line-height: 1.55;
     }
 
     .task-actions {
@@ -786,22 +833,31 @@
       min-height: 20px;
     }
 
+    .task-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .remove-btn {
-      background: transparent;
-      border: 1px solid var(--line);
-      color: var(--muted);
-      width: 28px;
-      height: 28px;
+      min-width: 48px;
+      height: 32px;
+      padding: 0 10px;
       border-radius: 6px;
       cursor: pointer;
       display: grid;
       place-items: center;
-      font-size: 14px;
+      font-size: 12px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, .035);
+      border: 1px solid var(--line);
+      color: var(--muted);
     }
 
     .remove-btn:hover {
-      border-color: var(--red);
-      color: var(--red);
+      border-color: rgba(154, 168, 182, .72);
+      color: var(--text);
+      background: rgba(255, 255, 255, .07);
     }
 
     .empty-list {
@@ -964,6 +1020,153 @@
       font-weight: 700;
     }
 
+    .boss-panel {
+      position: relative;
+      overflow: hidden;
+      border-color: rgba(240, 109, 98, .45);
+      background:
+        linear-gradient(135deg, rgba(240, 109, 98, .18), rgba(243, 185, 78, .08) 35%, rgba(24, 28, 34, .96) 70%),
+        rgba(24, 28, 34, .96);
+      box-shadow: 0 22px 70px rgba(0, 0, 0, .36), inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .boss-panel::before {
+      content: "BOSS";
+      position: absolute;
+      right: 18px;
+      top: 18px;
+      color: rgba(255, 255, 255, .035);
+      font-size: 88px;
+      font-weight: 900;
+      line-height: 1;
+      pointer-events: none;
+    }
+    .boss-panel .panel-header {
+      position: relative;
+      z-index: 1;
+      padding: 22px 26px 18px;
+      border-bottom: 1px solid rgba(240, 109, 98, .22);
+      background: linear-gradient(90deg, rgba(240, 109, 98, .18), rgba(65, 211, 139, .04));
+    }
+    .boss-panel .panel-title h2 {
+      font-size: 24px;
+      color: #fff5f2;
+    }
+    .boss-panel .panel-title span {
+      color: #d9b9ae;
+      font-size: 13px;
+    }
+    .boss-panel #refreshBossBtn {
+      border-color: rgba(243, 185, 78, .48);
+      background: rgba(243, 185, 78, .12);
+      color: #ffe2a8;
+      font-weight: 900;
+    }
+    .boss-panel .panel-body {
+      position: relative;
+      z-index: 1;
+      padding: 18px;
+    }
+    .boss-panel .boss-card {
+      position: relative;
+      overflow: hidden;
+      background:
+        linear-gradient(145deg, rgba(30, 18, 20, .92), rgba(23, 28, 36, .96) 58%),
+        var(--panel-2);
+      border-radius: 8px;
+      padding: 18px;
+      border: 1px solid rgba(240, 109, 98, .34);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    .boss-panel .boss-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 4px;
+      background: linear-gradient(90deg, var(--red), var(--amber), var(--green));
+    }
+    .boss-panel .boss-card.active {
+      border-color: rgba(243, 185, 78, .68);
+      box-shadow: 0 0 24px rgba(243, 185, 78, 0.18), inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .boss-panel .boss-card.defeated {
+      opacity: 1;
+      border-color: var(--green);
+      background: linear-gradient(145deg, rgba(65, 211, 139, .18), rgba(23, 28, 36, .96));
+    }
+    .boss-panel .boss-header {
+      align-items: start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .boss-label {
+      color: var(--amber);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0;
+      margin-bottom: 5px;
+    }
+    .boss-panel .boss-name {
+      font-size: 24px;
+      font-weight: 900;
+      color: #fff5f2;
+      line-height: 1.25;
+    }
+    .boss-panel .boss-stage {
+      display: inline-grid;
+      place-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      color: #ffe2a8;
+      background: rgba(243, 185, 78, .12);
+      border: 1px solid rgba(243, 185, 78, .36);
+      white-space: nowrap;
+    }
+    .boss-progress {
+      overflow: hidden;
+      height: 9px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .08);
+      margin-bottom: 14px;
+    }
+    .boss-progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--red), var(--amber), var(--green));
+    }
+    .boss-panel .boss-desc {
+      font-size: 14px;
+      color: #d9c8c3;
+      line-height: 1.6;
+    }
+    .boss-panel .boss-subtasks {
+      gap: 10px;
+    }
+    .boss-panel .subtask-item {
+      padding: 11px 12px;
+      background: rgba(10, 13, 17, .58);
+      border: 1px solid rgba(255, 255, 255, .05);
+    }
+    .boss-panel .subtask-item:hover {
+      border-color: rgba(243, 185, 78, .38);
+      background: rgba(243, 185, 78, .08);
+    }
+    .boss-panel .subtask-title {
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    .boss-panel .boss-reward {
+      font-size: 13px;
+      padding: 10px;
+      background: rgba(65, 211, 139, 0.12);
+      border: 1px solid rgba(65, 211, 139, .24);
+      border-radius: 8px;
+      font-weight: 800;
+    }
+
     textarea {
       width: 100%;
       min-height: 86px;
@@ -1002,6 +1205,18 @@
       font-size: 14px;
       margin: 0 0 12px 0;
       color: var(--muted);
+    }
+
+    .report-chart {
+      display: block;
+      width: 100%;
+      height: 240px;
+      background: transparent;
+    }
+
+    .pie-chart {
+      max-width: 360px;
+      margin: 0 auto;
     }
 
     .completion-rate {
@@ -1271,18 +1486,20 @@
       color: var(--red);
     }
     .fail-btn {
-      background: transparent;
-      border: 1px solid var(--red);
-      color: var(--red);
-      border-radius: 4px;
-      padding: 2px 6px;
+      min-width: 48px;
+      height: 32px;
+      padding: 0 10px;
+      background: rgba(240, 109, 98, .10);
+      border: 1px solid rgba(240, 109, 98, .62);
+      color: #ff9a90;
+      border-radius: 6px;
       font-size: 12px;
+      font-weight: 900;
       cursor: pointer;
-      margin-right: 4px;
     }
     .fail-btn:hover {
-      background: var(--red);
-      color: white;
+      background: rgba(240, 109, 98, .22);
+      color: #ffd2cc;
     }
     .month-selector {
       background: var(--panel-2);
