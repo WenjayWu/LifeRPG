@@ -8,5 +8,6 @@
 
 - 语言档位：默认档——描述语言不限（中文可用）；动词开头、不加句号；body 可补充动机与影响
 - type ∈ `feat` `fix` `docs` `refactor` `perf` `test` `build` `ci` `chore` `style` `revert`；scope 可选（`fix(viewer): ...`），限 ASCII 字母数字与 `.` `_` `/` `-`
+- 破坏性变更用 `!`：`feat(api)!: ...`
 - 禁止 `update:` `change:` `final:` 等模糊前缀与裸描述；禁止 `[verified]` 等流程标记写入 subject（写入 body）
-- 豁免 git 自动生成：`Merge ...`、`Revert ...`、`fixup!`、`squash!`、裸 `Initial commit`
+- 豁免 git 自动生成：`Merge ...`、`Revert ...`、`fixup!`、`squash!`、`amend!`、裸 `Initial commit`
